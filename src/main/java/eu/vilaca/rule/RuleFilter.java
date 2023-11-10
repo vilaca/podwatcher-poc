@@ -12,7 +12,6 @@ public class RuleFilter {
 	private List<String> exclude;
 
 	public boolean filter(String candidate) {
-		//return contains(include, candidate) && !contains(exclude, candidate);
 		if (filterActive(include) && !include.contains(candidate)) {
 			return false;
 		}

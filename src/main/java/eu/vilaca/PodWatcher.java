@@ -1,9 +1,9 @@
 package eu.vilaca;
 
 import eu.vilaca.rule.LogicOperation;
+import eu.vilaca.rule.PodWatcherRule;
 import eu.vilaca.violation.ImageData;
 import eu.vilaca.violation.PodRuleViolation;
-import eu.vilaca.rule.PodWatcherRule;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -48,91 +48,18 @@ public class PodWatcher {
 						null,
 						null)
 				.getItems()
-				.forEach(pod ->
-						{
-							final var namespace = pod.getMetadata().getNamespace();
-							var lst = allPods.get(namespace);
-							if (lst == null) {
-								lst = new ArrayList<>();
-							}
-							lst.add(pod);
-							allPods.put(namespace, lst);
-						}
-				);
+				.forEach(pod -> groupByNamespace(allPods, pod));
 		return new PodWatcher(null, Collections.unmodifiableMap(allPods));
 	}
 
-	private List<PodRuleViolation> evaluate(PodWatcherRule rule, V1Pod pod) {
-		final var podName = pod.getMetadata().getName();
-		if (rule.getNamespace() != null && !rule.getNamespace().filter(pod.getMetadata().getNamespace())) {
-			log.debug("Excluded pod {}. Reason: namespace rule.", podName);
-			return List.of();
+	private static void groupByNamespace(Map<String, List<V1Pod>> allPods, V1Pod pod) {
+		final var namespace = pod.getMetadata().getNamespace();
+		var lst = allPods.get(namespace);
+		if (lst == null) {
+			lst = new ArrayList<>();
 		}
-
-		//log.debug("Included pod {}.", podName);
-
-		final var ruleViolations = pod.getStatus()
-				.getContainerStatuses()
-				.stream()
-				.map(this::createImageData)
-				.map(image -> validate(image, rule))
-				.filter(Objects::nonNull)
-				.collect(Collectors.toList());
-
-		ruleViolations.forEach(v -> {
-			v.setNamespace(pod.getMetadata().getNamespace());
-			v.setPod(pod.getMetadata().getName());
-		});
-
-		return ruleViolations;
-	}
-
-	private PodRuleViolation validate(ImageData image, PodWatcherRule rule) {
-		final var validImage = rule.getImageName() == null || rule.getImageName().isAllowed(image.getName());
-		final var validRegistry = rule.getRepository() == null || rule.getRepository().isAllowed(image.getRegistry());
-		final var validSha = rule.getSha() == null || rule.getSha().isAllowed(image.getSha256());
-		final var validTag = rule.getTag() == null || rule.getTag().isAllowed(image.getTag());
-		final var operation = rule.getOperation() == null ? LogicOperation.AND : rule.getOperation();
-
-		log.debug("op: {} image: {} reg: {} tag: {} sha: {}", operation, validImage, validRegistry, validTag, validSha);
-
-		return evaluateLogicOperation(validImage, validRegistry, validSha, validTag, operation)
-				? null
-				: PodRuleViolation.builder().imageData(image).rule(rule).build();
-	}
-
-	private boolean evaluateLogicOperation(boolean validImage, boolean validRegistry, boolean validSha, boolean validTag, LogicOperation operation) {
-		switch (operation) {
-			case OR:
-				return validImage || validSha || validRegistry || validTag;
-			case AND:
-				return validImage && validSha && validRegistry && validTag;
-			default:
-				throw new IllegalStateException();
-		}
-	}
-
-	private ImageData createImageData(V1ContainerStatus status) {
-		final var image = status.getImage();
-		final var registryPos = image.lastIndexOf('/');
-		final var registry = registryPos != -1 ? image.substring(0, registryPos) : "";
-
-		final var tagPos = image.lastIndexOf(':');
-		final var imageName = tagPos != -1
-				? image.substring(registry.isBlank() ? 0 : registry.length() + 1, tagPos) : "";
-
-		final var tag = tagPos != -1 ? image.substring(tagPos + 1) : "";
-		final var sha256 = status.getImageID().startsWith("docker://sha256:") ?
-				status.getImageID().substring("docker://sha256:".length()) : "";
-
-		log.debug("registry: {} image: {} tag: {} sha256: {}", registry, imageName, tag, sha256);
-
-		return ImageData.builder()
-				.name(imageName)
-				.registry(registry)
-				.tag(tag)
-				.sha256(sha256)
-				.build();
+		lst.add(pod);
+		allPods.put(namespace, lst);
 	}
 
 	public List<PodRuleViolation> evaluate(PodWatcherRule rule) {
@@ -151,7 +78,7 @@ public class PodWatcher {
 		}
 
 		return pods.stream()
-				.flatMap(pod-> evaluate(rule, pod).stream())
+				.flatMap(pod -> rule.evaluate(pod).stream())
 				.collect(Collectors.toList());
 	}
 }

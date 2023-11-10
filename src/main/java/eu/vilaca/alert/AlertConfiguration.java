@@ -9,5 +9,5 @@ public class AlertConfiguration {
 	private String url;
 	private String user;
 	private String password;
-	private long defaultDuration = 1000 * 60 * 60;
+	private long defaultDuration = 1000 * 60 * 5;
 }
