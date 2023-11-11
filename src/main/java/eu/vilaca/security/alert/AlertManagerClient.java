@@ -1,8 +1,10 @@
-package eu.vilaca.alert;
+package eu.vilaca.security.alert;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import eu.vilaca.security.alert.model.Message;
+import eu.vilaca.security.alert.model.MessageLine;
 import okhttp3.Credentials;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -16,14 +18,14 @@ import java.util.TimeZone;
 
 public class AlertManagerClient {
 	public static void sendAlert(AlertConfiguration conf, Message msg) {
-		for (Line l : msg.content()) {
+		for (MessageLine l : msg.content()) {
 			if (l.getEndsAt() != null) continue;
 			setDuration(conf, l);
 		}
 		String json;
 		try {
 			json = new ObjectMapper().configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-					.writerWithDefaultPrettyPrinter()
+					//	.writerWithDefaultPrettyPrinter()
 					.writeValueAsString(msg.content());
 		} catch (JsonProcessingException e) {
 			json = "[{\"labels\":{\"alertname\":\"Error in application!\"},\"endsAt\":\"2099-01-01T00:00:00-00:00\"}]";
@@ -37,15 +39,16 @@ public class AlertManagerClient {
 		final var client = new OkHttpClient().newBuilder().build();
 		try {
 			final var response = client.newCall(request).execute();
-			response.newBuilder();
+			// TODO handle not 200
 		} catch (IOException e) {
-
+			//TODO
 		}
 	}
 
-	private static void setDuration(AlertConfiguration conf, Line l) {
-		final var df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'"); // Quoted "Z" to indicate UTC, no timezone offset
+	private static void setDuration(AlertConfiguration conf, MessageLine ml) {
+		final var df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		df.setTimeZone(TimeZone.getTimeZone("UTC"));
-		l.setEndsAt(df.format(new Date().getTime() + conf.defaultDuration()));
+		final var endsAt = df.format(new Date().getTime() + conf.defaultDuration());
+		ml.setEndsAt(endsAt);
 	}
 }

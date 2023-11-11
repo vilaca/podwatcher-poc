@@ -1,4 +1,4 @@
-package eu.vilaca.violation;
+package eu.vilaca.security.violation;
 
 import lombok.Builder;
 import lombok.Data;

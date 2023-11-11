@@ -1,6 +1,6 @@
-package eu.vilaca.violation;
+package eu.vilaca.security.violation;
 
-import eu.vilaca.rule.PodWatcherRule;
+import eu.vilaca.security.rule.PodWatcherRule;
 import lombok.Builder;
 import lombok.Data;
 
@@ -23,10 +23,10 @@ public class PodRuleViolation {
 
 	public Map<String, String> createLabels() {
 		final var labels = new HashMap<String, String>();
-		addLabel(labels, "Rule", this.rule.getName());
-		addLabel(labels, "Namespace", this.namespace);
-		addLabel(labels, "Pod", this.pod);
-		addLabel(labels, "Image", this.imageData.pretty());
+		addLabel(labels, "rule", this.rule.getName());
+		addLabel(labels, "namespace", this.namespace);
+		addLabel(labels, "pod", this.pod);
+		addLabel(labels, "image", this.imageData.pretty());
 		return labels;
 	}
 }

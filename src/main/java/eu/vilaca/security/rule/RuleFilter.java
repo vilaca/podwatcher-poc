@@ -1,11 +1,9 @@
-package eu.vilaca.rule;
+package eu.vilaca.security.rule;
 
-import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
 
-@Builder
 @Data
 public class RuleFilter {
 	private List<String> include;

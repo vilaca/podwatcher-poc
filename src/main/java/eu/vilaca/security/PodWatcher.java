@@ -1,13 +1,10 @@
-package eu.vilaca;
+package eu.vilaca.security;
 
-import eu.vilaca.rule.LogicOperation;
-import eu.vilaca.rule.PodWatcherRule;
-import eu.vilaca.violation.ImageData;
-import eu.vilaca.violation.PodRuleViolation;
+import eu.vilaca.security.rule.PodWatcherRule;
+import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
 import lombok.extern.log4j.Log4j2;
 
@@ -16,28 +13,26 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Log4j2
 public class PodWatcher {
-	private final CoreV1Api api;
 	private final Map<String, List<V1Pod>> cache;
+	private CoreV1Api api;
 
 	public PodWatcher(ApiClient client) {
-		this(new CoreV1Api(client), new HashMap<>());
+		this.api = new CoreV1Api(client);
+		this.cache = new HashMap<>();
 	}
 
-	private PodWatcher(CoreV1Api api, Map<String, List<V1Pod>> cache) {
-		this.api = api;
+	private PodWatcher(Map<String, List<V1Pod>> cache) {
 		this.cache = cache;
 	}
 
 	public static PodWatcher allNamespaces(ApiClient client) throws ApiException {
 		final var api = new CoreV1Api(client);
 		final Map<String, List<V1Pod>> allPods = new HashMap<>();
-		api.listPodForAllNamespaces(
-						null,
+		api.listPodForAllNamespaces(null,
 						null,
 						null,
 						null,
@@ -49,7 +44,7 @@ public class PodWatcher {
 						null)
 				.getItems()
 				.forEach(pod -> groupByNamespace(allPods, pod));
-		return new PodWatcher(null, Collections.unmodifiableMap(allPods));
+		return new PodWatcher(Collections.unmodifiableMap(allPods));
 	}
 
 	private static void groupByNamespace(Map<String, List<V1Pod>> allPods, V1Pod pod) {
@@ -73,12 +68,37 @@ public class PodWatcher {
 		} else {
 			pods = rule.include()
 					.stream()
-					.flatMap(ns -> cache.get(ns).stream())
+					.flatMap(ns -> getCached(ns).stream())
 					.collect(Collectors.toList());
 		}
-
 		return pods.stream()
 				.flatMap(pod -> rule.evaluate(pod).stream())
 				.collect(Collectors.toList());
+	}
+
+	private List<V1Pod> getCached(String ns) {
+		var pods = this.cache.get(ns);
+		if (pods != null) {
+			return pods;
+		}
+		try {
+			pods = api.listNamespacedPod(ns,
+							null,
+							null,
+							null,
+							null,
+							null,
+							null,
+							null,
+							null,
+							null,
+							null)
+					.getItems();
+			this.cache.put(ns, pods);
+			return pods;
+		} catch (ApiException ex) {
+			log.error("Cannot list pods in namespace {}.", ns, ex);
+		}
+		return Collections.emptyList();
 	}
 }

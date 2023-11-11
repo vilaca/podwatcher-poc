@@ -1,10 +1,13 @@
-package eu.vilaca.alert;
+package eu.vilaca.security.alert;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.Setter;
 import lombok.experimental.Accessors;
 
-@Accessors(fluent = true)
 @Data
+@Accessors(fluent = true)
+@Setter(onMethod = @__(@JsonProperty))
 public class AlertConfiguration {
 	private String url;
 	private String user;
