@@ -1,0 +1,10 @@
+---
+#default Alertmanager credentials, ok to commit 👍🏻
+# can be overwritten with env var AM_URL
+url: http://localhost:9093/api/v1/alerts
+# can be overwritten with env var AM_USER
+user: admin
+# can be overwritten with env var AM_PASSWORD
+password: admin
+# can be overwritten with env var AM_DEFAULT_DURATION
+defaultDuration: 180000
