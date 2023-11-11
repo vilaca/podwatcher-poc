@@ -1,0 +1,12 @@
+# valiate kube-system
+# in namespace kube-system only pods from docker.io and registry.k8s.io are allowed
+name: kube-system safety
+enabled: true
+namespace:
+  include:
+    - kube-system
+repository:
+  - docker.io
+  - registry.k8s.io
+template: system-alert
+

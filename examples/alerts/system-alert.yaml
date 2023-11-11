@@ -1,0 +1,8 @@
+name: system-alert
+env: prod
+group: pod-watcher
+labels:
+  - rule
+  - namespace
+  - pod
+  - image
