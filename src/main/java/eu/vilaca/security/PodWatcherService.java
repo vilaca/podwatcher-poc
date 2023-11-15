@@ -1,6 +1,6 @@
 package eu.vilaca.security;
 
-import eu.vilaca.security.rule.PodWatcherRule;
+import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -19,9 +19,9 @@ public class PodWatcherService {
 		this.client = client;
 	}
 
-	List<PodRuleViolation> watch(List<PodWatcherRule> rules) {
+	List<PodRuleViolation> watch(List<Rule> rules) {
 		final var allNamespaces = !rules.stream()
-				.map(PodWatcherRule::allNamespaces)
+				.map(Rule::allNamespaces)
 				.collect(Collectors.toList())
 				.contains(false);
 		final PodWatcher watcher;

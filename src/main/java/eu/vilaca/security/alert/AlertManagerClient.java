@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import eu.vilaca.security.alert.model.Message;
 import eu.vilaca.security.alert.model.MessageLine;
+import lombok.extern.log4j.Log4j2;
 import okhttp3.Credentials;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -16,8 +17,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
+@Log4j2
 public class AlertManagerClient {
-	public static void sendAlert(AlertConfiguration conf, Message msg) {
+	public static void sendAlert(Configuration conf, Message msg) {
 		for (MessageLine l : msg.content()) {
 			if (l.getEndsAt() != null) continue;
 			setDuration(conf, l);
@@ -39,13 +41,15 @@ public class AlertManagerClient {
 		final var client = new OkHttpClient().newBuilder().build();
 		try {
 			final var response = client.newCall(request).execute();
-			// TODO handle not 200
-		} catch (IOException e) {
-			//TODO
+			if (!response.isSuccessful()) {
+				log.error("Error on call to alertmanager. Status: {}.", response.code());
+			}
+		} catch (IOException ex) {
+			log.error("Exception calling alertmanager.", ex);
 		}
 	}
 
-	private static void setDuration(AlertConfiguration conf, MessageLine ml) {
+	private static void setDuration(Configuration conf, MessageLine ml) {
 		final var df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		df.setTimeZone(TimeZone.getTimeZone("UTC"));
 		final var endsAt = df.format(new Date().getTime() + conf.defaultDuration());

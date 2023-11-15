@@ -1,0 +1,5 @@
+# Alert when container runs as root
+name: insecure-workload:run-as-root
+enabled: true
+rule: securityContext.runAsUser == 0 || container.securityContext.runAsUser == 0
+alert: insecure-workload

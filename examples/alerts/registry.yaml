@@ -1,4 +1,5 @@
-name: system-alert
+name: registry alert
+enabled: true
 env: prod
 group: pod-watcher
 labels:

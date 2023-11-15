@@ -3,11 +3,11 @@ package eu.vilaca.security;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import eu.vilaca.security.alert.AlertConfiguration;
+import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.AlertManagerClient;
 import eu.vilaca.security.alert.model.AlertTemplate;
 import eu.vilaca.security.alert.model.Message;
-import eu.vilaca.security.rule.PodWatcherRule;
+import eu.vilaca.security.rule.Rule;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import lombok.extern.log4j.Log4j2;
@@ -44,7 +44,7 @@ public class PodWatcherApp {
 		final var violations = new PodWatcherService(createApiClient()).watch(rules);
 		violations.forEach(
 				v -> {
-					final var template = alerts.get(v.getRule().getTemplate());
+					final var template = alerts.get(v.getRule().getAlert());
 					final var message = new HashMap<String, String>();
 					final var labels = v.createLabels();
 					template.getLabels()
@@ -115,7 +115,7 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static List<PodWatcherRule> readRules() {
+	private static List<Rule> readRules() {
 		final var rulesFolder = System.getenv("RULES_FOLDER");
 		if (rulesFolder == null) {
 			return Collections.emptyList();
@@ -131,20 +131,20 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static PodWatcherRule getPodWatcherRule(Path file) {
+	private static Rule getPodWatcherRule(Path file) {
 		try {
 			final var om = new ObjectMapper(new YAMLFactory());
 			om.findAndRegisterModules();
 			om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 			//om.reader().without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-			return om.readValue(new File(file.toString()), PodWatcherRule.class);
+			return om.readValue(new File(file.toString()), Rule.class);
 		} catch (IOException e) {
 			log.error(e);
 			return null;
 		}
 	}
 
-	private static AlertConfiguration getAmConfiguration() {
+	private static Configuration getAmConfiguration() {
 		final var am = initializeAlertConfi();
 		final int defaultDuration = useDefaultIfNull(System.getenv("AM_DEFAULT_DURATION"), -1);
 		if (defaultDuration != -1) {
@@ -165,14 +165,14 @@ public class PodWatcherApp {
 		return am;
 	}
 
-	private static AlertConfiguration initializeAlertConfi() {
+	private static Configuration initializeAlertConfi() {
 		try {
 			final var om = new ObjectMapper(new YAMLFactory());
 			om.findAndRegisterModules();
-			return om.readValue(new File("src/main/resources/default.yaml"), AlertConfiguration.class);
+			return om.readValue(new File("src/main/resources/default.yaml"), Configuration.class);
 		} catch (Exception ex) {
 			log.warn("Unable to open AlertManager default config.", ex);
-			return new AlertConfiguration();
+			return new Configuration();
 		}
 	}
 

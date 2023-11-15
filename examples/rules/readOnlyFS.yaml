@@ -1,0 +1,5 @@
+# Alert when container runs as root
+name: readOnlyFs
+enabled: true
+rule: container.securityContext.readOnlyRootFilesystem == false
+alert: insecure-workload

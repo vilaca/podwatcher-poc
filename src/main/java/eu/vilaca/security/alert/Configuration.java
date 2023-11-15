@@ -8,7 +8,7 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(fluent = true)
 @Setter(onMethod = @__(@JsonProperty))
-public class AlertConfiguration {
+public class Configuration {
 	private String url;
 	private String user;
 	private String password;

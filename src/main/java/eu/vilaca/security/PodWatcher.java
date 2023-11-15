@@ -1,6 +1,6 @@
 package eu.vilaca.security;
 
-import eu.vilaca.security.rule.PodWatcherRule;
+import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -57,16 +57,17 @@ public class PodWatcher {
 		allPods.put(namespace, lst);
 	}
 
-	public List<PodRuleViolation> evaluate(PodWatcherRule rule) {
+	public List<PodRuleViolation> evaluate(Rule rule) {
 		final List<V1Pod> pods;
 		if (rule.allNamespaces()) {
 			pods = cache.entrySet()
 					.stream()
-					.filter(entry -> !rule.exclude().contains(entry.getKey()))
+					//.filter(entry -> !rule.exclude().contains(entry.getKey()))
 					.flatMap(entry -> entry.getValue().stream())
 					.collect(Collectors.toList());
 		} else {
-			pods = rule.include()
+			pods = rule.getFilter().getNamespaces()
+					.getInclude()
 					.stream()
 					.flatMap(ns -> getCached(ns).stream())
 					.collect(Collectors.toList());

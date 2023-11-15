@@ -1,0 +1,9 @@
+name: insecure-workload
+enabled: true
+env: prod
+group: insecure-worload
+labels:
+  - rule
+  - namespace
+  - pod
+  - image
