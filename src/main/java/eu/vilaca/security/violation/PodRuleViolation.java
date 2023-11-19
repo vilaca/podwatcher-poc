@@ -18,8 +18,8 @@ public class PodRuleViolation {
 	public PodRuleViolation(Rule rule, V1Pod pod, V1Container c) {
 		this.imageData = new ImageData(c.getImage());
 		this.rule = rule;
-		this.namespace = pod.getMetadata().getNamespace();
-		this.pod = pod.getMetadata().getName();
+		this.namespace = pod.getMetadata() == null ? null : pod.getMetadata().getNamespace();
+		this.pod = pod.getMetadata() == null ? null : pod.getMetadata().getName();
 	}
 
 	private static void addLabel(HashMap<String, String> labels, String name, String value) {

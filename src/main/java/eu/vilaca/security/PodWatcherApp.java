@@ -145,7 +145,7 @@ public class PodWatcherApp {
 	}
 
 	private static Configuration getAmConfiguration() {
-		final var am = initializeAlertConfi();
+		final var am = initializeAlertConfiguration();
 		final int defaultDuration = useDefaultIfNull(System.getenv("AM_DEFAULT_DURATION"), -1);
 		if (defaultDuration != -1) {
 			am.defaultDuration(defaultDuration);
@@ -165,7 +165,7 @@ public class PodWatcherApp {
 		return am;
 	}
 
-	private static Configuration initializeAlertConfi() {
+	private static Configuration initializeAlertConfiguration() {
 		try {
 			final var om = new ObjectMapper(new YAMLFactory());
 			om.findAndRegisterModules();
