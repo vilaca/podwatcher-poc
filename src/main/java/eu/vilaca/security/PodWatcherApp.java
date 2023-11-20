@@ -3,8 +3,8 @@ package eu.vilaca.security;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.AlertManagerClient;
+import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.model.AlertTemplate;
 import eu.vilaca.security.alert.model.Message;
 import eu.vilaca.security.rule.Rule;
@@ -30,18 +30,26 @@ public class PodWatcherApp {
 	public static void main(String[] args) {
 
 		final var amConfiguration = getAmConfiguration();
+		if (amConfiguration.password() == null || amConfiguration.password().isBlank()
+				|| amConfiguration.user() == null || amConfiguration.user().isBlank()
+				|| amConfiguration.url() == null || amConfiguration.url().isBlank()) {
+			log.error("Missing required alert-manager configuration.");
+			return;
+		}
+
 		final var rules = readRules();
-		final var alerts = readAlertTemplates().stream()
-				.collect(Collectors.toMap(AlertTemplate::getName, Function.identity()));
 		if (rules.isEmpty()) {
 			log.error("No rules available. Exiting.");
 			return;
 		}
+		final var alerts = readAlertTemplates().stream()
+				.collect(Collectors.toMap(AlertTemplate::getName, Function.identity()));
 		if (alerts.isEmpty()) {
 			log.error("No alert templates found. Exiting.");
 			return;
 		}
-		final var violations = new PodWatcherService(createApiClient()).watch(rules);
+		final var kubeconfig = createApiClient();
+		final var violations = new PodWatcherService(kubeconfig).watch(rules);
 		violations.forEach(
 				v -> {
 					final var template = alerts.get(v.getRule().getAlert());
@@ -62,7 +70,7 @@ public class PodWatcherApp {
 
 	private static ApiClient createApiClient() {
 		final var kc = System.getenv("KUBECONFIG");
-		if (kc != null) {
+		if (kc != null && !kc.isBlank()) {
 			try {
 				return Config.fromConfig(kc);
 			} catch (IOException e) {
@@ -70,7 +78,7 @@ public class PodWatcherApp {
 			}
 		}
 		final var k8s = System.getenv("KUBERNETES_SERVICE_HOST");
-		if (k8s != null) {
+		if (k8s != null && !k8s.isBlank()) {
 			try {
 				return Config.fromCluster();
 			} catch (IOException e) {
@@ -79,6 +87,7 @@ public class PodWatcherApp {
 			}
 		}
 		try {
+			log.info("Using default k8s api client.");
 			return Config.defaultClient();
 		} catch (IOException e) {
 			log.error("Can't create api client.", e);
@@ -89,7 +98,7 @@ public class PodWatcherApp {
 
 	private static List<AlertTemplate> readAlertTemplates() {
 		final var templatesFolder = System.getenv("ALERT_TEMPLATES_FOLDER");
-		if (templatesFolder == null) {
+		if (templatesFolder == null || templatesFolder.isBlank()) {
 			return Collections.emptyList();
 		}
 		try (Stream<Path> paths = Files.walk(Paths.get(templatesFolder))) {
@@ -110,14 +119,14 @@ public class PodWatcherApp {
 			om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 			return om.readValue(new File(file.toString()), AlertTemplate.class);
 		} catch (IOException e) {
-			log.error(e);
+			log.error("Error reading alert file {}.", file.getFileName());
 			return null;
 		}
 	}
 
 	private static List<Rule> readRules() {
 		final var rulesFolder = System.getenv("RULES_FOLDER");
-		if (rulesFolder == null) {
+		if (rulesFolder == null || rulesFolder.isBlank()) {
 			return Collections.emptyList();
 		}
 		try (Stream<Path> paths = Files.walk(Paths.get(rulesFolder))) {
@@ -136,10 +145,9 @@ public class PodWatcherApp {
 			final var om = new ObjectMapper(new YAMLFactory());
 			om.findAndRegisterModules();
 			om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-			//om.reader().without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 			return om.readValue(new File(file.toString()), Rule.class);
 		} catch (IOException e) {
-			log.error(e);
+			log.error("Error reading rule file {}.", file.getFileName());
 			return null;
 		}
 	}
@@ -171,7 +179,7 @@ public class PodWatcherApp {
 			om.findAndRegisterModules();
 			return om.readValue(new File("src/main/resources/default.yaml"), Configuration.class);
 		} catch (Exception ex) {
-			log.warn("Unable to open AlertManager default config.", ex);
+			log.info("Unable to open AlertManager default config.");
 			return new Configuration();
 		}
 	}
