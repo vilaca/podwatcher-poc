@@ -4,7 +4,22 @@ Receive alerts whenever containers running in your cluster break user defined ru
 
 See examples/rules for rule examples.
 
-### Run
+### Run in Kubernetes
+
+    kubectl create serviceaccount sa-pod-watcher
+    kubectl create clusterrole cr --verb=get,list --resource=pods
+    kubectl create clusterrolebinding crb --clusterrole=cr --serviceaccount=default:sa-pod-watcher
+    kubectl run podwatcher-poc \
+      --image=ghcr.io/vilaca/podwatcher-poc:main \
+      --image-pull-policy=Always \
+      --env="AM_USER=admin" \
+      --env="AM_PASSWORD=" \
+      --env="AM_URL=http://alertmanager:9093/api/v1/alerts" \
+      --env="ALERT_TEMPLATES_FOLDER=examples/alerts" \
+      --env="RULES_FOLDER=examples/rules" \
+      --overrides='{ "spec": { "serviceAccount": "sa-pod-watcher" }  }'
+
+### Run in Docker
 
 Run the latest version from the GitHub repository:
 
@@ -13,7 +28,7 @@ Run the latest version from the GitHub repository:
         -e ALERT_TEMPLATES_FOLDER=examples/alerts \
         -e KUBECONFIG=/kubeconfig.yaml \
         -e AM_USER=user \
-        -e AM_PASSWORD=pass \
+        -e AM_PASSWORD= \
         -e AM_URL=http://alertmanager:9093/api/v1/alerts \
         ghcr.io/vilaca/podwatcher-poc:latest
 
@@ -25,7 +40,7 @@ Run the latest version from the GitHub repository:
         -e ALERT_TEMPLATES_FOLDER=examples/alerts \
         -e KUBECONFIG=/kubeconfig.yaml \
         -e AM_USER=user \
-        -e AM_PASSWORD=pass \
+        -e AM_PASSWORD= \
         -e AM_URL=http://alertmanager:9093/api/v1/alerts \
         pod-watcher-local
 
