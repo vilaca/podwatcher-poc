@@ -1,4 +1,4 @@
-package eu.vilaca.security;
+package eu.vilaca.security.service;
 
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
@@ -19,7 +19,7 @@ public class PodWatcherService {
 		this.client = client;
 	}
 
-	List<PodRuleViolation> watch(List<Rule> rules) {
+	public List<PodRuleViolation> watch(List<Rule> rules) {
 		final var allNamespaces = !rules.stream()
 				.map(Rule::allNamespaces)
 				.collect(Collectors.toList())
@@ -27,13 +27,13 @@ public class PodWatcherService {
 		final PodWatcher watcher;
 		if (allNamespaces) {
 			try {
-				watcher = PodWatcher.allNamespaces(client);
+				watcher = new EagerPodWatcher(client);
 			} catch (ApiException e) {
 				log.error("Can't list pods in all namespaces.", e);
 				return Collections.emptyList();
 			}
 		} else {
-			watcher = new PodWatcher(client);
+			watcher = new LazyPodWatcher(client);
 		}
 		return rules.stream()
 				.flatMap(rule -> watcher.evaluate(rule).stream())

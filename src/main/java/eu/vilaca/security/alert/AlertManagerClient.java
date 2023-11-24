@@ -20,18 +20,11 @@ import java.util.TimeZone;
 @Log4j2
 public class AlertManagerClient {
 	public static void sendAlert(Configuration conf, Message msg) {
-		for (MessageLine l : msg.content()) {
-			if (l.getEndsAt() != null) continue;
-			setDuration(conf, l);
-		}
-		String json;
-		try {
-			json = new ObjectMapper().configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-					//	.writerWithDefaultPrettyPrinter()
-					.writeValueAsString(msg.content());
-		} catch (JsonProcessingException e) {
-			json = "[{\"labels\":{\"alertname\":\"Error in application!\"},\"endsAt\":\"2099-01-01T00:00:00-00:00\"}]";
-		}
+		msg.content()
+				.stream()
+				.filter(ml -> ml.getEndsAt() == null)
+				.forEach(ml -> setDuration(conf, ml));
+		final var json = createJson(msg);
 		final var credential = Credentials.basic(conf.user(), conf.password());
 		final var request = new Request.Builder()
 				.url(conf.url())
@@ -47,6 +40,18 @@ public class AlertManagerClient {
 		} catch (IOException ex) {
 			log.error("Exception calling alertmanager.", ex);
 		}
+	}
+
+	private static String createJson(Message msg) {
+		String json;
+		try {
+			json = new ObjectMapper().configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+					//	.writerWithDefaultPrettyPrinter()
+					.writeValueAsString(msg.content());
+		} catch (JsonProcessingException e) {
+			json = "[{\"labels\":{\"alertname\":\"Error in application!\"},\"endsAt\":\"2099-01-01T00:00:00-00:00\"}]";
+		}
+		return json;
 	}
 
 	private static void setDuration(Configuration conf, MessageLine ml) {

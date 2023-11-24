@@ -1,10 +1,14 @@
 # valiate kube-system
 # in namespace kube-system only pods from docker.io and registry.k8s.io are allowed
-name: kube-system safety
-enabled: true
+name: kube-system namespace safety
+enabled: false
 filter:
   namespace:
     include:
       - kube-system
-rule: container.image.registry != "registry.k8s.io" && container.image.registry != "docker.io"
+rule: >
+  container.image.registry != "registry.k8s.io"
+  && container.image.registry != "docker.io"
+  && container.image.registry !=  "ghcr.io"
+
 alert: registry alert

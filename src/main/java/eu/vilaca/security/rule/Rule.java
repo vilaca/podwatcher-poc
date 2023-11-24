@@ -29,15 +29,17 @@ public class Rule {
 	private String alert;
 
 	public boolean allNamespaces() {
-		return this.filter == null || this.filter.getNamespaces() == null
-				|| this.filter.getNamespaces().getExclude() != null;
+		return this.filter == null
+				|| this.filter.getNamespace() == null
+				|| this.filter.getNamespace().getExclude() != null;
 	}
 
 	public List<PodRuleViolation> evaluate(V1Pod pod) {
 		final var spec = pod.getSpec();
 		if (spec != null) {
 			try {
-				return spec.getContainers().stream()
+				return spec.getContainers()
+						.stream()
 						.filter(c -> evaluateRule(buildContext(spec, c)))
 						.map(c -> new PodRuleViolation(this, pod, c))
 						.collect(Collectors.toList());
