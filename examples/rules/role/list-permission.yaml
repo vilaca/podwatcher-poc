@@ -1,0 +1,11 @@
+# Alert existence of unnecessary use of list permission
+name: unnecessary use of list permission
+enabled: true
+rule: role.verb=="list" && role.resource=="secrets"
+target: rbac
+alert: insecure-workload
+labels:
+  rule: rule.name
+  namespace: namespace
+  pod: container.podName
+  image: container.image.prettyName

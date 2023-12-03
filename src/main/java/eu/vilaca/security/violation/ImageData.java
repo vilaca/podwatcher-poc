@@ -8,10 +8,11 @@ public class ImageData {
 	private final String name;
 	private final String tag;
 	private final String sha256;
+	private final String prettyName;
 
 	public ImageData(String image) {
 		if (image == null) {
-			registry = name = tag = sha256 = null;
+			prettyName = registry = name = tag = sha256 = null;
 			return;
 		}
 
@@ -37,9 +38,11 @@ public class ImageData {
 			this.tag = null;
 			this.sha256 = null;
 		}
+
+		this.prettyName = pretty();
 	}
 
-	public String pretty() {
+	private String pretty() {
 		var name = this.registry + "/" + this.name;
 		if (tag != null) {
 			name += ":" + tag;

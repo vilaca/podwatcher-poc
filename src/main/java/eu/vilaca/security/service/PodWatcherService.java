@@ -1,7 +1,10 @@
 package eu.vilaca.security.service;
 
 import eu.vilaca.security.rule.Rule;
-import eu.vilaca.security.violation.PodRuleViolation;
+import eu.vilaca.security.violation.RuleViolation;
+import eu.vilaca.security.watcher.EagerPodWatcher;
+import eu.vilaca.security.watcher.LazyPodWatcher;
+import eu.vilaca.security.watcher.PodWatcher;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import lombok.extern.log4j.Log4j2;
@@ -11,7 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Log4j2
-public class PodWatcherService {
+public class PodWatcherService implements WatcherService {
 
 	private final ApiClient client;
 
@@ -19,7 +22,7 @@ public class PodWatcherService {
 		this.client = client;
 	}
 
-	public List<PodRuleViolation> watch(List<Rule> rules) {
+	public List<RuleViolation> watch(List<Rule> rules) {
 		final var allNamespaces = !rules.stream()
 				.map(Rule::allNamespaces)
 				.collect(Collectors.toList())

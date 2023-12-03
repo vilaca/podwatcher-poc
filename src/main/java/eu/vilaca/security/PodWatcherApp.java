@@ -7,12 +7,16 @@ import eu.vilaca.security.alert.AlertManagerClient;
 import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.model.AlertTemplate;
 import eu.vilaca.security.alert.model.Message;
+import eu.vilaca.security.rule.Context;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.service.PodWatcherService;
-import eu.vilaca.security.violation.PodRuleViolation;
+import eu.vilaca.security.service.RbacWatcherService;
+import eu.vilaca.security.violation.RuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,25 +55,50 @@ public class PodWatcherApp {
 			return;
 		}
 		final var apiClient = createApiClient();
+		new RbacWatcherService(apiClient)
+				.watch(rules.stream().filter(r -> "rbac".equals(r.getTarget())).toList())
+				.stream()
+				.map(v -> createAlert(alerts, v))
+				.forEach(message -> AlertManagerClient.sendAlert(amConfiguration, message));
+
 		new PodWatcherService(apiClient)
-				.watch(rules)
-				.forEach(v -> sendAlerts(amConfiguration, alerts, v));
+				.watch(rules.stream().filter(r -> !"rbac".equals(r.getTarget())).toList())
+				.stream()
+				//.map(PodRuleViolation::new)
+				.map(v -> createAlert(alerts, v))
+				.forEach(message -> AlertManagerClient.sendAlert(amConfiguration, message));
 	}
 
-	private static void sendAlerts(Configuration amConfiguration,
-								   Map<String, AlertTemplate> alerts, PodRuleViolation v) {
-		final var template = alerts.get(v.getRule().getAlert());
+	private static Message createAlert(Map<String, AlertTemplate> alerts, RuleViolation rv) {
 		final var message = new HashMap<String, String>();
-		final var labels = v.createLabels();
-		template.getLabels()
-				.forEach(l -> message.put(l, labels.get(l)));
+		final var rule = rv.getCtx().rule;
+		final var template = alerts.get(rule.getAlert());
 		if (template.getEnv() != null && !template.getEnv().isBlank()) {
 			message.put("env", template.getEnv());
 		}
 		if (template.getGroup() != null && !template.getGroup().isBlank()) {
 			message.put("group", template.getGroup());
 		}
-		AlertManagerClient.sendAlert(amConfiguration, new Message(message));
+//		message.putAll(rule
+//				.getLabels()
+//				.entrySet()
+//				.stream()
+//				.collect(Collectors.toMap(Map.Entry::getKey, expr -> evaluateLabel(rv.getCtx(), expr.getValue()))));
+		rule.getLabels()
+				.forEach((key, value) -> message.put(key, evaluateLabel(rv.getCtx(), value)));
+		return new Message(message);
+	}
+
+	private static String evaluateLabel(Context ctx, String expr) {
+		final var parser = new SpelExpressionParser();
+		final var context = new StandardEvaluationContext(ctx);
+		try {
+			final var exp = parser.parseExpression(expr);
+			return (String) exp.getValue(context);
+		} catch (Exception ex) {
+			log.error("Cannot parse expression [{}].", expr);
+			return "(parsing error)";
+		}
 	}
 
 	private static ApiClient createApiClient() {

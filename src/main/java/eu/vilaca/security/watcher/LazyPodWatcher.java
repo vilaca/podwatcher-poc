@@ -1,7 +1,8 @@
-package eu.vilaca.security.service;
+package eu.vilaca.security.watcher;
 
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
+import eu.vilaca.security.violation.RuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -15,16 +16,17 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Log4j2
+public
 class LazyPodWatcher implements PodWatcher {
 	private final Map<String, List<V1Pod>> cache;
 	private final CoreV1Api api;
 
-	LazyPodWatcher(ApiClient client) {
+	public LazyPodWatcher(ApiClient client) {
 		this.api = new CoreV1Api(client);
 		this.cache = new HashMap<>();
 	}
 
-	public List<PodRuleViolation> evaluate(Rule rule) {
+	public List<RuleViolation> evaluate(Rule rule) {
 		final List<V1Pod> pods = rule.getFilter()
 				.getNamespace()
 				.getInclude()
