@@ -1,15 +1,15 @@
-FROM maven as build
+FROM gradle:8.5-jdk21 as build
 
 WORKDIR /app
-COPY pom.xml ./
-RUN mvn dependency:resolve
+COPY build.gradle settings.gradle* ./
+COPY gradle ./gradle
 COPY src ./src
-RUN mvn package spring-boot:repackage -Dmaven.test.skip
+RUN gradle build -x test --no-daemon
 
 FROM gcr.io/distroless/java21
 WORKDIR /app
 
-COPY --from=build /app/target/k8s-probe-1.0-SNAPSHOT.jar ./
+COPY --from=build /app/build/libs/*.jar ./app.jar
 COPY examples ./examples
 
-CMD ["k8s-probe-1.0-SNAPSHOT.jar"]
+CMD ["app.jar"]

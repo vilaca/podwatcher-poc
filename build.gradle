@@ -1,0 +1,66 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+}
+
+group = 'eu.vilaca'
+version = '1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'eu.vilaca.security.PodWatcherApp'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    testCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    implementation 'io.kubernetes:client-java:18.0.0'
+    implementation 'org.apache.logging.log4j:log4j-api:2.20.0'
+    implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.0-rc1'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.0-rc1'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.0-rc1'
+    implementation 'com.squareup.okhttp3:okhttp:4.10.0'
+    implementation 'org.springframework:spring-expression:6.0.10'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.7.0'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.10.0'
+}
+
+test {
+    useJUnit()
+    testLogging {
+        events "passed", "failed", "skipped"
+        exceptionFormat "short"
+        showStandardStreams = false
+    }
+    ignoreFailures = true
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        csv.required = true
+    }
+}
