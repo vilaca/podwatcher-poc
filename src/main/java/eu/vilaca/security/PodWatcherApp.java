@@ -32,6 +32,16 @@ import java.util.stream.Stream;
 
 @Log4j2
 public class PodWatcherApp {
+
+	private static final ObjectMapper YAML_MAPPER = createYamlMapper();
+
+	private static ObjectMapper createYamlMapper() {
+		final var om = new ObjectMapper(new YAMLFactory());
+		om.findAndRegisterModules();
+		om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		return om;
+	}
+
 	public static void main(String[] args) {
 		HealthServer healthServer = null;
 		try {
@@ -133,27 +143,30 @@ public class PodWatcherApp {
 	private static List<AlertTemplate> readAlertTemplates() {
 		final var templatesFolder = System.getenv("ALERT_TEMPLATES_FOLDER");
 		if (templatesFolder == null || templatesFolder.isBlank()) {
+			log.error("ALERT_TEMPLATES_FOLDER environment variable is not set.");
 			return Collections.emptyList();
 		}
-		try (Stream<Path> paths = Files.walk(Paths.get(templatesFolder))) {
+		final var folder = Paths.get(templatesFolder);
+		if (!Files.isDirectory(folder)) {
+			log.error("ALERT_TEMPLATES_FOLDER '{}' does not exist or is not a directory.", templatesFolder);
+			return Collections.emptyList();
+		}
+		try (Stream<Path> paths = Files.walk(folder)) {
 			return paths.filter(Files::isRegularFile)
 					.map(PodWatcherApp::readAlertTemplates)
 					.filter(Objects::nonNull)
 					.collect(Collectors.toList());
 		} catch (IOException e) {
-			log.error(e);
+			log.error("Error reading alert templates from folder '{}'.", templatesFolder, e);
 			return Collections.emptyList();
 		}
 	}
 
 	private static AlertTemplate readAlertTemplates(Path file) {
 		try {
-			final var om = new ObjectMapper(new YAMLFactory());
-			om.findAndRegisterModules();
-			om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-			return om.readValue(new File(file.toString()), AlertTemplate.class);
+			return YAML_MAPPER.readValue(new File(file.toString()), AlertTemplate.class);
 		} catch (IOException e) {
-			log.error("Error reading alert file {}.", file.getFileName());
+			log.error("Error reading alert file {}.", file.getFileName(), e);
 			return null;
 		}
 	}
@@ -161,28 +174,31 @@ public class PodWatcherApp {
 	private static List<Rule> readRules() {
 		final var rulesFolder = System.getenv("RULES_FOLDER");
 		if (rulesFolder == null || rulesFolder.isBlank()) {
+			log.error("RULES_FOLDER environment variable is not set.");
 			return Collections.emptyList();
 		}
-		try (Stream<Path> paths = Files.walk(Paths.get(rulesFolder))) {
+		final var folder = Paths.get(rulesFolder);
+		if (!Files.isDirectory(folder)) {
+			log.error("RULES_FOLDER '{}' does not exist or is not a directory.", rulesFolder);
+			return Collections.emptyList();
+		}
+		try (Stream<Path> paths = Files.walk(folder)) {
 			return paths.filter(Files::isRegularFile)
 					.map(PodWatcherApp::getPodWatcherRule)
 					.filter(Objects::nonNull)
 					.filter(Rule::isEnabled)
 					.collect(Collectors.toList());
 		} catch (IOException e) {
-			log.error(e);
+			log.error("Error reading rules from folder '{}'.", rulesFolder, e);
 			return Collections.emptyList();
 		}
 	}
 
 	private static Rule getPodWatcherRule(Path file) {
 		try {
-			final var om = new ObjectMapper(new YAMLFactory());
-			om.findAndRegisterModules();
-			om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-			return om.readValue(new File(file.toString()), Rule.class);
+			return YAML_MAPPER.readValue(new File(file.toString()), Rule.class);
 		} catch (IOException e) {
-			log.error("Error reading rule file {}.", file.getFileName());
+			log.error("Error reading rule file {}.", file.getFileName(), e);
 			return null;
 		}
 	}
@@ -214,9 +230,7 @@ public class PodWatcherApp {
 				log.info("No default AlertManager config found on classpath.");
 				return new Configuration();
 			}
-			final var om = new ObjectMapper(new YAMLFactory());
-			om.findAndRegisterModules();
-			return om.readValue(is, Configuration.class);
+			return YAML_MAPPER.readValue(is, Configuration.class);
 		} catch (Exception ex) {
 			log.info("Unable to open AlertManager default config.");
 			return new Configuration();

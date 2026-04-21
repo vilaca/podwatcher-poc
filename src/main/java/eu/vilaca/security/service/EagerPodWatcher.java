@@ -49,7 +49,6 @@ class EagerPodWatcher implements PodWatcher {
 	public List<PodRuleViolation> evaluate(Rule rule) {
 		final List<V1Pod> pods = cache.entrySet()
 				.stream()
-				//.filter(entry -> !rule.exclude().contains(entry.getKey()))
 				.flatMap(entry -> entry.getValue().stream())
 				.collect(Collectors.toList());
 		return pods.stream()
