@@ -12,7 +12,7 @@ import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.expression.spel.SpelEvaluationException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,10 +55,14 @@ public class Rule {
 		return Collections.emptyList();
 	}
 
+	private static final SpelExpressionParser PARSER = new SpelExpressionParser();
+
 	private Boolean evaluateRule(Context ctx) {
-		final var parser = new SpelExpressionParser();
-		final var context = new StandardEvaluationContext(ctx);
-		final var exp = parser.parseExpression(rule);
+		final var context = SimpleEvaluationContext
+				.forReadOnlyDataBinding()
+				.withRootObject(ctx)
+				.build();
+		final var exp = PARSER.parseExpression(rule);
 		return (Boolean) exp.getValue(context);
 	}
 

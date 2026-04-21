@@ -13,12 +13,27 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.TimeUnit;
 
 @Log4j2
 public class AlertManagerClient {
+
+	private static final int MAX_RETRIES = 3;
+	private static final long RETRY_DELAY_MS = 1000;
+
+	private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
+			.connectTimeout(10, TimeUnit.SECONDS)
+			.readTimeout(10, TimeUnit.SECONDS)
+			.writeTimeout(10, TimeUnit.SECONDS)
+			.build();
+
+	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter
+			.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+			.withZone(ZoneOffset.UTC);
+
 	public static void sendAlert(Configuration conf, Message msg) {
 		msg.content()
 				.stream()
@@ -31,22 +46,38 @@ public class AlertManagerClient {
 				.post(RequestBody.create(json, MediaType.parse("application/json")))
 				.header("Authorization", credential)
 				.build();
-		final var client = new OkHttpClient().newBuilder().build();
-		try {
-			final var response = client.newCall(request).execute();
-			if (!response.isSuccessful()) {
-				log.error("Error on call to alertmanager. Status: {}.", response.code());
+
+		for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+			try {
+				final var response = CLIENT.newCall(request).execute();
+				try {
+					if (response.isSuccessful()) {
+						return;
+					}
+					log.error("Error on call to alertmanager. Status: {} (attempt {}/{}).",
+							response.code(), attempt, MAX_RETRIES);
+				} finally {
+					response.close();
+				}
+			} catch (IOException ex) {
+				log.error("Exception calling alertmanager (attempt {}/{}).", attempt, MAX_RETRIES, ex);
 			}
-		} catch (IOException ex) {
-			log.error("Exception calling alertmanager.", ex);
+			if (attempt < MAX_RETRIES) {
+				try {
+					Thread.sleep(RETRY_DELAY_MS * attempt);
+				} catch (InterruptedException ie) {
+					Thread.currentThread().interrupt();
+					return;
+				}
+			}
 		}
+		log.error("Failed to send alert after {} attempts.", MAX_RETRIES);
 	}
 
 	private static String createJson(Message msg) {
 		String json;
 		try {
 			json = new ObjectMapper().configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-					//	.writerWithDefaultPrettyPrinter()
 					.writeValueAsString(msg.content());
 		} catch (JsonProcessingException e) {
 			json = "[{\"labels\":{\"alertname\":\"Error in application!\"},\"endsAt\":\"2099-01-01T00:00:00-00:00\"}]";
@@ -55,9 +86,8 @@ public class AlertManagerClient {
 	}
 
 	private static void setDuration(Configuration conf, MessageLine ml) {
-		final var df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-		df.setTimeZone(TimeZone.getTimeZone("UTC"));
-		final var endsAt = df.format(new Date().getTime() + conf.defaultDuration());
+		final var endsAt = DATE_FORMAT.format(
+				Instant.now().plusMillis(conf.defaultDuration()));
 		ml.setEndsAt(endsAt);
 	}
 }

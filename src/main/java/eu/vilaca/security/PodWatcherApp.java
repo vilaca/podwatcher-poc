@@ -179,10 +179,14 @@ public class PodWatcherApp {
 	}
 
 	private static Configuration initializeAlertConfiguration() {
-		try {
+		try (final var is = PodWatcherApp.class.getResourceAsStream("/default.yaml")) {
+			if (is == null) {
+				log.info("No default AlertManager config found on classpath.");
+				return new Configuration();
+			}
 			final var om = new ObjectMapper(new YAMLFactory());
 			om.findAndRegisterModules();
-			return om.readValue(new File("src/main/resources/default.yaml"), Configuration.class);
+			return om.readValue(is, Configuration.class);
 		} catch (Exception ex) {
 			log.info("Unable to open AlertManager default config.");
 			return new Configuration();
