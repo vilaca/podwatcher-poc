@@ -115,14 +115,13 @@ public class RuleFilterTest {
 	public void nullCandidateWithExclude() {
 		final var filter = new RuleFilter();
 		filter.setExclude(List.of("default"));
-		// null is not in the exclude list, so it passes
-		assertTrue(filter.filter(null));
+		assertFalse(filter.filter(null));
 	}
 
 	@Test
 	public void nullCandidateNoFilters() {
 		final var filter = new RuleFilter();
-		assertTrue(filter.filter(null));
+		assertFalse(filter.filter(null));
 	}
 
 	// --- Case sensitivity ---

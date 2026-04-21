@@ -31,7 +31,8 @@ public class Rule {
 	public boolean allNamespaces() {
 		return this.filter == null
 				|| this.filter.getNamespace() == null
-				|| this.filter.getNamespace().getExclude() != null;
+				|| this.filter.getNamespace().getExclude() != null
+				|| this.filter.getNamespace().getInclude() == null;
 	}
 
 	public List<PodRuleViolation> evaluate(V1Pod pod) {

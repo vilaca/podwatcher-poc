@@ -108,7 +108,8 @@ public class FilterAndNamespaceTest {
 		om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		final var filter = om.readValue(yaml, Filter.class);
 
-		assertNull(filter.getNamespace());
+		// YAML "---" with no content deserializes to null, not an empty object
+		assertNull(filter);
 	}
 
 	// --- Equals/HashCode via Lombok ---

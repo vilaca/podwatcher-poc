@@ -15,37 +15,49 @@ public class ImageData {
 			return;
 		}
 
-		this.registry = image.substring(0, image.indexOf('/'));
-		final var tag = image.indexOf(':');
-		final var sha256 = image.indexOf('@');
+		final var lastSlash = image.lastIndexOf('/');
 
-		if (tag == -1 && sha256 == -1) {
-			this.name = image.substring(image.lastIndexOf('/') + 1);
-		} else if (tag != -1) {
-			this.name = image.substring(image.lastIndexOf('/') + 1, tag);
+		if (lastSlash == -1) {
+			this.registry = null;
 		} else {
-			this.name = image.substring(image.lastIndexOf('/') + 1, sha256);
+			this.registry = image.substring(0, lastSlash);
 		}
 
-		if (tag != -1 && sha256 != -1) {
-			this.tag = image.substring(tag + 1);
-			this.sha256 = image.substring(sha256 + 1);
-		} else if (sha256 != -1) {
-			this.tag = null;
-			this.sha256 = image.substring(sha256 + 1);
-		} else {
+		final var nameStart = lastSlash + 1;
+		final var namePart = image.substring(nameStart);
+
+		final var atPos = namePart.indexOf('@');
+		final var colonPos = namePart.indexOf(':');
+
+		// colon is only a tag separator if it appears before '@' (or there's no '@')
+		final var hasTag = colonPos != -1 && (atPos == -1 || colonPos < atPos);
+
+		if (!hasTag && atPos == -1) {
+			this.name = namePart;
 			this.tag = null;
 			this.sha256 = null;
+		} else if (!hasTag) {
+			this.name = namePart.substring(0, atPos);
+			this.tag = null;
+			this.sha256 = namePart.substring(atPos + 1);
+		} else if (atPos == -1) {
+			this.name = namePart.substring(0, colonPos);
+			this.tag = namePart.substring(colonPos + 1);
+			this.sha256 = null;
+		} else {
+			this.name = namePart.substring(0, colonPos);
+			this.tag = namePart.substring(colonPos + 1, atPos);
+			this.sha256 = namePart.substring(atPos + 1);
 		}
 	}
 
 	public String pretty() {
-		var name = this.registry + "/" + this.name;
+		var name = this.registry != null ? this.registry + "/" + this.name : this.name;
 		if (tag != null) {
 			name += ":" + tag;
 		}
 		if (sha256 != null) {
-			name += ":" + sha256;
+			name += "@" + sha256;
 		}
 		return name;
 	}

@@ -10,6 +10,9 @@ public class RuleFilter {
 	private List<String> exclude;
 
 	public boolean filter(String candidate) {
+		if (candidate == null) {
+			return false;
+		}
 		if (filterActive(include) && !include.contains(candidate)) {
 			return false;
 		}

@@ -11,10 +11,10 @@ public class ImageDataTest {
 	@Test
 	public void fullImageReference() {
 		final var img = new ImageData("docker.io/library/nginx:1.25@sha256:abc123");
-		assertEquals("docker.io", img.getRegistry());
+		assertEquals("docker.io/library", img.getRegistry());
 		assertEquals("nginx", img.getName());
-		assertNotNull(img.getTag());
-		assertNotNull(img.getSha256());
+		assertEquals("1.25", img.getTag());
+		assertEquals("sha256:abc123", img.getSha256());
 	}
 
 	// --- Registry + name + tag ---
@@ -40,7 +40,7 @@ public class ImageDataTest {
 	@Test
 	public void registryWithNestedPathAndTag() {
 		final var img = new ImageData("ghcr.io/org/sub/image:v2.0");
-		assertEquals("ghcr.io", img.getRegistry());
+		assertEquals("ghcr.io/org/sub", img.getRegistry());
 		assertEquals("image", img.getName());
 		assertEquals("v2.0", img.getTag());
 	}
@@ -50,7 +50,7 @@ public class ImageDataTest {
 	@Test
 	public void registryWithNameNoTag() {
 		final var img = new ImageData("quay.io/prometheus/node-exporter");
-		assertEquals("quay.io", img.getRegistry());
+		assertEquals("quay.io/prometheus", img.getRegistry());
 		assertEquals("node-exporter", img.getName());
 		assertNull(img.getTag());
 		assertNull(img.getSha256());
@@ -71,36 +71,29 @@ public class ImageDataTest {
 
 	@Test
 	public void bareImageName_noRegistryNoTag() {
-		// "nginx" has no '/' so image.indexOf('/') returns -1
-		// This will throw StringIndexOutOfBoundsException in current code
-		try {
-			new ImageData("nginx");
-			fail("Expected exception for image without registry");
-		} catch (StringIndexOutOfBoundsException e) {
-			// Current behavior: crashes
-		}
+		final var img = new ImageData("nginx");
+		assertNull(img.getRegistry());
+		assertEquals("nginx", img.getName());
+		assertNull(img.getTag());
+		assertNull(img.getSha256());
 	}
 
 	@Test
 	public void bareImageNameWithTag() {
-		// "nginx:latest" has no '/' so image.indexOf('/') returns -1
-		try {
-			new ImageData("nginx:latest");
-			fail("Expected exception for image without registry");
-		} catch (StringIndexOutOfBoundsException e) {
-			// Current behavior: crashes
-		}
+		final var img = new ImageData("nginx:latest");
+		assertNull(img.getRegistry());
+		assertEquals("nginx", img.getName());
+		assertEquals("latest", img.getTag());
+		assertNull(img.getSha256());
 	}
 
 	@Test
 	public void bareImageNameWithSha256() {
-		// "nginx@sha256:abc" has no '/'
-		try {
-			new ImageData("nginx@sha256:abc");
-			fail("Expected exception for image without registry");
-		} catch (StringIndexOutOfBoundsException e) {
-			// Current behavior: crashes
-		}
+		final var img = new ImageData("nginx@sha256:abc");
+		assertNull(img.getRegistry());
+		assertEquals("nginx", img.getName());
+		assertNull(img.getTag());
+		assertEquals("sha256:abc", img.getSha256());
 	}
 
 	// --- Null and empty ---
@@ -116,13 +109,11 @@ public class ImageDataTest {
 
 	@Test
 	public void emptyString() {
-		// Empty string: indexOf('/') returns -1
-		try {
-			new ImageData("");
-			fail("Expected exception for empty image string");
-		} catch (StringIndexOutOfBoundsException e) {
-			// Current behavior: crashes
-		}
+		final var img = new ImageData("");
+		assertNull(img.getRegistry());
+		assertEquals("", img.getName());
+		assertNull(img.getTag());
+		assertNull(img.getSha256());
 	}
 
 	// --- Port in registry ---
@@ -139,9 +130,9 @@ public class ImageDataTest {
 	@Test
 	public void privateRegistryWithPort() {
 		final var img = new ImageData("registry.example.com:5000/org/app:2.0");
-		assertEquals("registry.example.com:5000", img.getRegistry());
+		assertEquals("registry.example.com:5000/org", img.getRegistry());
 		assertEquals("app", img.getName());
-		// Tag parsing may get confused by the port colon
+		assertEquals("2.0", img.getTag());
 	}
 
 	// --- pretty() method ---
@@ -159,9 +150,7 @@ public class ImageDataTest {
 	public void prettyWithSha256() {
 		final var img = new ImageData("docker.io/nginx@sha256:abc123");
 		final var pretty = img.pretty();
-		assertTrue(pretty.contains("docker.io"));
-		assertTrue(pretty.contains("nginx"));
-		assertTrue(pretty.contains("sha256:abc123"));
+		assertEquals("docker.io/nginx@sha256:abc123", pretty);
 	}
 
 	@Test
@@ -174,9 +163,9 @@ public class ImageDataTest {
 	@Test
 	public void prettyNullImage() {
 		final var img = new ImageData(null);
-		// pretty() will produce "null/null" since registry and name are null
 		final var pretty = img.pretty();
-		assertEquals("null/null", pretty);
+		// registry and name are null, pretty() returns just name (null)
+		assertNull(pretty);
 	}
 
 	// --- Edge cases with colons and @ symbols ---

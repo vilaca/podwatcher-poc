@@ -54,7 +54,6 @@ test {
         exceptionFormat "short"
         showStandardStreams = false
     }
-    ignoreFailures = true
     finalizedBy jacocoTestReport
 }
 
