@@ -37,6 +37,9 @@ class EagerPodWatcher implements PodWatcher {
 	}
 
 	private static void groupByNamespace(Map<String, List<V1Pod>> allPods, V1Pod pod) {
+		if (pod.getMetadata() == null) {
+			return;
+		}
 		final var namespace = pod.getMetadata().getNamespace();
 		var lst = allPods.get(namespace);
 		if (lst == null) {

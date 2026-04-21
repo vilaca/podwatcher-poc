@@ -174,6 +174,56 @@ public class LazyPodWatcherTest {
 		}
 	}
 
+	// --- Null filter chain returns empty ---
+
+	@Test
+	public void ruleWithNullFilter_returnsEmpty() {
+		final var rule = new Rule();
+		rule.setName("no-filter");
+		rule.setEnabled(true);
+		rule.setRule("true");
+		rule.setAlert("test");
+		// filter is null
+
+		final var watcher = new LazyPodWatcher(new ApiClient());
+		final var violations = watcher.evaluate(rule);
+		assertTrue(violations.isEmpty());
+	}
+
+	@Test
+	public void ruleWithNullNamespace_returnsEmpty() {
+		final var rule = new Rule();
+		rule.setName("no-namespace");
+		rule.setEnabled(true);
+		rule.setRule("true");
+		rule.setAlert("test");
+		rule.setFilter(new Filter());
+		// namespace is null
+
+		final var watcher = new LazyPodWatcher(new ApiClient());
+		final var violations = watcher.evaluate(rule);
+		assertTrue(violations.isEmpty());
+	}
+
+	@Test
+	public void ruleWithNullInclude_returnsEmpty() {
+		final var rule = new Rule();
+		rule.setName("no-include");
+		rule.setEnabled(true);
+		rule.setRule("true");
+		rule.setAlert("test");
+		final var ns = new Namespace();
+		ns.setExclude(List.of("kube-system"));
+		final var filter = new Filter();
+		filter.setNamespace(ns);
+		rule.setFilter(filter);
+		// include is null
+
+		final var watcher = new LazyPodWatcher(new ApiClient());
+		final var violations = watcher.evaluate(rule);
+		assertTrue(violations.isEmpty());
+	}
+
 	// --- Always-false rule ---
 
 	@Test

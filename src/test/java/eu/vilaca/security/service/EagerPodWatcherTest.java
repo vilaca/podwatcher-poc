@@ -159,6 +159,32 @@ public class EagerPodWatcherTest {
 		}
 	}
 
+	// --- Pod with null metadata is skipped ---
+
+	@Test
+	public void podWithNullMetadata_skipped() throws Exception {
+		final var normalPod = createPod("default", "nginx", "docker.io/nginx:latest");
+		final var nullMetaPod = new V1Pod();
+		nullMetaPod.setSpec(new V1PodSpec().containers(List.of(
+				new V1Container().name("main").image("docker.io/bad:latest"))));
+		// metadata is null
+
+		final var podList = new V1PodList();
+		podList.setItems(List.of(normalPod, nullMetaPod));
+
+		try (var mocked = Mockito.mockConstruction(CoreV1Api.class, (mock, ctx) ->
+				when(mock.listPodForAllNamespaces(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+						.thenReturn(podList))) {
+			final var watcher = new EagerPodWatcher(new ApiClient());
+			final var rule = createRule("always-true", "true");
+
+			final var violations = watcher.evaluate(rule);
+			// Only the pod with valid metadata should be evaluated
+			assertEquals(1, violations.size());
+			assertEquals("nginx", violations.get(0).getPod());
+		}
+	}
+
 	// --- Always-false rule on multiple pods ---
 
 	@Test

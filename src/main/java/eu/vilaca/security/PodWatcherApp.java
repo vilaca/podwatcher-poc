@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -80,6 +81,13 @@ public class PodWatcherApp {
 			log.error("No rules available. Exiting.");
 			return;
 		}
+		final var errors = validate(rules, alerts);
+		if (!errors.isEmpty()) {
+			errors.forEach(err -> log.error("Config validation failed: {}", err));
+			log.error("Aborting due to {} configuration error(s).", errors.size());
+			System.exit(1);
+			return;
+		}
 		Metrics.RULES_LOADED.set(rules.size());
 		log.info("Loaded {} rules.", rules.size());
 
@@ -96,13 +104,42 @@ public class PodWatcherApp {
 		log.info("Scan complete.");
 	}
 
+	static List<String> validate(List<Rule> rules, Map<String, AlertTemplate> alerts) {
+		final var errors = new ArrayList<String>();
+		for (final var template : alerts.values()) {
+			if (template.getName() == null || template.getName().isBlank()) {
+				errors.add("Alert template has no name.");
+			}
+			if (template.getLabels() == null || template.getLabels().isEmpty()) {
+				errors.add("Alert template '" + template.getName() + "' has no labels defined.");
+			}
+		}
+		for (final var rule : rules) {
+			if (rule.getRule() == null || rule.getRule().isBlank()) {
+				errors.add("Rule '" + rule.getName() + "' has no SpEL expression defined.");
+			}
+			if (rule.getAlert() == null || rule.getAlert().isBlank()) {
+				errors.add("Rule '" + rule.getName() + "' has no alert template reference.");
+			} else if (!alerts.containsKey(rule.getAlert())) {
+				errors.add("Rule '" + rule.getName() + "' references unknown alert template '" + rule.getAlert() + "'.");
+			}
+		}
+		return errors;
+	}
+
 	private static void sendAlerts(Configuration amConfiguration,
 								   Map<String, AlertTemplate> alerts, PodRuleViolation v) {
 		final var template = alerts.get(v.getRule().getAlert());
+		if (template == null) {
+			log.error("No alert template found for '{}'. Skipping alert.", v.getRule().getAlert());
+			return;
+		}
 		final var message = new HashMap<String, String>();
 		final var labels = v.createLabels();
-		template.getLabels()
-				.forEach(l -> message.put(l, labels.get(l)));
+		if (template.getLabels() != null) {
+			template.getLabels()
+					.forEach(l -> message.put(l, labels.get(l)));
+		}
 		if (template.getEnv() != null && !template.getEnv().isBlank()) {
 			message.put("env", template.getEnv());
 		}

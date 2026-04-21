@@ -25,6 +25,11 @@ class LazyPodWatcher implements PodWatcher {
 	}
 
 	public List<PodRuleViolation> evaluate(Rule rule) {
+		if (rule.getFilter() == null
+				|| rule.getFilter().getNamespace() == null
+				|| rule.getFilter().getNamespace().getInclude() == null) {
+			return Collections.emptyList();
+		}
 		final List<V1Pod> pods = rule.getFilter()
 				.getNamespace()
 				.getInclude()
