@@ -1,5 +1,6 @@
 package eu.vilaca.security.rule;
 
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.model.Filter;
 import eu.vilaca.security.violation.ImageData;
 import eu.vilaca.security.violation.PodRuleViolation;
@@ -36,17 +37,22 @@ public class Rule {
 	}
 
 	public List<PodRuleViolation> evaluate(V1Pod pod) {
+		Metrics.RULES_EVALUATED_TOTAL.labels(this.name).inc();
 		final var spec = pod.getSpec();
 		if (spec != null) {
 			try {
-				return spec.getContainers()
+				final var violations = spec.getContainers()
 						.stream()
 						.filter(c -> evaluateRule(buildContext(spec, c)))
 						.map(c -> new PodRuleViolation(this, pod, c))
 						.collect(Collectors.toList());
+				violations.forEach(v -> Metrics.VIOLATIONS_TOTAL.labels(this.name).inc());
+				return violations;
 			} catch (SpelEvaluationException se) {
+				Metrics.RULES_ERRORS_TOTAL.labels(this.name).inc();
 				log.error("Can't evaluate rule {}. {}", this.name, se.getMessage());
 			} catch (Exception ex) {
+				Metrics.RULES_ERRORS_TOTAL.labels(this.name).inc();
 				log.error("Can't evaluate rule {}.", this.name, ex);
 			}
 		} else {

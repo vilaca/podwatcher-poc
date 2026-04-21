@@ -12,6 +12,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
+import eu.vilaca.security.observability.Metrics;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -52,6 +54,7 @@ public class AlertManagerClient {
 				final var response = CLIENT.newCall(request).execute();
 				try {
 					if (response.isSuccessful()) {
+						Metrics.ALERTS_SENT_TOTAL.inc();
 						return;
 					}
 					log.error("Error on call to alertmanager. Status: {} (attempt {}/{}).",
@@ -71,6 +74,7 @@ public class AlertManagerClient {
 				}
 			}
 		}
+		Metrics.ALERTS_FAILED_TOTAL.inc();
 		log.error("Failed to send alert after {} attempts.", MAX_RETRIES);
 	}
 

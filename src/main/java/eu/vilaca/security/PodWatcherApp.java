@@ -7,6 +7,8 @@ import eu.vilaca.security.alert.AlertManagerClient;
 import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.model.AlertTemplate;
 import eu.vilaca.security.alert.model.Message;
+import eu.vilaca.security.observability.HealthServer;
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.service.PodWatcherService;
 import eu.vilaca.security.violation.PodRuleViolation;
@@ -31,6 +33,24 @@ import java.util.stream.Stream;
 @Log4j2
 public class PodWatcherApp {
 	public static void main(String[] args) {
+		HealthServer healthServer = null;
+		try {
+			healthServer = new HealthServer();
+			healthServer.start();
+		} catch (Exception e) {
+			log.warn("Could not start health/metrics server.", e);
+		}
+
+		try {
+			run();
+		} finally {
+			if (healthServer != null) {
+				healthServer.stop();
+			}
+		}
+	}
+
+	private static void run() {
 		final var amConfiguration = getAmConfiguration();
 		if (amConfiguration.password() == null || amConfiguration.password().isBlank()
 				|| amConfiguration.user() == null || amConfiguration.user().isBlank()
@@ -50,10 +70,20 @@ public class PodWatcherApp {
 			log.error("No rules available. Exiting.");
 			return;
 		}
+		Metrics.RULES_LOADED.set(rules.size());
+		log.info("Loaded {} rules.", rules.size());
+
 		final var apiClient = createApiClient();
-		new PodWatcherService(apiClient)
-				.watch(rules)
-				.forEach(v -> sendAlerts(amConfiguration, alerts, v));
+		final var timer = Metrics.SCAN_DURATION_SECONDS.startTimer();
+		try {
+			final var violations = new PodWatcherService(apiClient).watch(rules);
+			Metrics.PODS_SCANNED_TOTAL.inc(violations.size());
+			violations.forEach(v -> sendAlerts(amConfiguration, alerts, v));
+		} finally {
+			timer.observeDuration();
+			Metrics.LAST_SCAN_TIMESTAMP.setToCurrentTime();
+		}
+		log.info("Scan complete.");
 	}
 
 	private static void sendAlerts(Configuration amConfiguration,
