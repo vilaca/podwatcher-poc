@@ -1,5 +1,6 @@
 # Alert when container can run with execution privileges
 name: privileged container
 enabled: true
+severity: critical
 rule: container.securityContext.privileged  == true || container.securityContext.allowPrivilegeEscalation == true
 alert: insecure-workload

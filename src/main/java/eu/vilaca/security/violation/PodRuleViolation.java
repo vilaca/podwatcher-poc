@@ -34,6 +34,7 @@ public class PodRuleViolation {
 		addLabel(labels, "namespace", this.namespace);
 		addLabel(labels, "pod", this.pod);
 		addLabel(labels, "image", this.imageData.pretty());
+		addLabel(labels, "severity", this.rule.getSeverity());
 		return labels;
 	}
 }

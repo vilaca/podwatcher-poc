@@ -141,4 +141,38 @@ public class RuleYamlDeserializationTest {
 		assertFalse(rule.isEnabled()); // default is false for boolean
 		assertNull(rule.getFilter());
 	}
+
+	// --- Severity field ---
+
+	@Test
+	public void severityFieldDeserialized() throws Exception {
+		final var yaml = "name: priv-rule\n" +
+				"enabled: true\n" +
+				"severity: high\n" +
+				"rule: container.securityContext.privileged == true\n" +
+				"alert: insecure-workload\n";
+
+		final var rule = deserialize(yaml);
+		assertEquals("high", rule.getSeverity());
+	}
+
+	@Test
+	public void severityFieldAbsent_isNull() throws Exception {
+		final var yaml = "name: no-severity\n" +
+				"enabled: true\n" +
+				"rule: \"true\"\n" +
+				"alert: test\n";
+
+		final var rule = deserialize(yaml);
+		assertNull(rule.getSeverity());
+	}
+
+	@Test
+	public void severityFieldAllValues() throws Exception {
+		for (final var sev : new String[]{"critical", "high", "medium", "low", "info"}) {
+			final var yaml = "name: test\nseverity: " + sev + "\nrule: \"true\"\nalert: a\n";
+			final var rule = deserialize(yaml);
+			assertEquals(sev, rule.getSeverity());
+		}
+	}
 }

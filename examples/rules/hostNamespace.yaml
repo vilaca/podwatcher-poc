@@ -1,0 +1,9 @@
+# Alert when container uses host namespaces
+name: host-namespace-access
+enabled: true
+severity: critical
+rule: >
+  spec.hostNetwork == true
+  || spec.hostPID == true
+  || spec.hostIPC == true
+alert: insecure-workload

@@ -1,0 +1,7 @@
+# Alert when container does not drop ALL capabilities
+name: missing-drop-all-capabilities
+enabled: true
+severity: high
+rule: >
+  !container.securityContext.capabilities.drop.contains('ALL')
+alert: insecure-workload

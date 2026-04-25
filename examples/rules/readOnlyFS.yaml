@@ -1,5 +1,6 @@
-# Alert when container runs as root
+# Alert when container has writable root filesystem
 name: readOnlyFs
 enabled: true
+severity: medium
 rule: container.securityContext.readOnlyRootFilesystem == false
 alert: insecure-workload
