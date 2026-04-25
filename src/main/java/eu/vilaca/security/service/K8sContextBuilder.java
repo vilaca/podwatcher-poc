@@ -1,9 +1,11 @@
 package eu.vilaca.security.service;
 
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Context;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.ImageData;
 import eu.vilaca.security.violation.PodRuleViolation;
+import lombok.extern.log4j.Log4j2;
 import io.kubernetes.client.openapi.models.V1Capabilities;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerPort;
@@ -18,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Log4j2
 public class K8sContextBuilder {
 
 	public static Context buildContext(V1Pod pod, V1PodSpec spec, V1Container c, String containerType) {
@@ -69,6 +72,8 @@ public class K8sContextBuilder {
 	public static List<PodRuleViolation> evaluatePod(Rule rule, V1Pod pod) {
 		final var spec = pod.getSpec();
 		if (spec == null) {
+			log.warn("Pod {} has null spec, skipping rule {}.", podName(pod), rule.getName());
+			Metrics.RULES_ERRORS_TOTAL.labels(rule.getName()).inc();
 			return List.of();
 		}
 		final var namespace = podNamespace(pod);
