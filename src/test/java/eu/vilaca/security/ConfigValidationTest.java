@@ -60,6 +60,24 @@ public class ConfigValidationTest {
 	}
 
 	@Test
+	public void ruleWithInvalidSpelExpression_fails() {
+		final var template = createTemplate("alert", List.of("rule"));
+		final var rule = createRule("bad-spel", "this is not valid SpEL !!!@#$", "alert");
+		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		assertEquals(1, errors.size());
+		assertTrue(errors.get(0).contains("bad-spel"));
+		assertTrue(errors.get(0).contains("invalid SpEL"));
+	}
+
+	@Test
+	public void ruleWithValidSpelExpression_passes() {
+		final var template = createTemplate("alert", List.of("rule"));
+		final var rule = createRule("good-spel", "container.securityContext.privileged == true", "alert");
+		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		assertTrue(errors.isEmpty());
+	}
+
+	@Test
 	public void ruleWithBlankExpression_fails() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("blank-rule", "   ", "alert");
