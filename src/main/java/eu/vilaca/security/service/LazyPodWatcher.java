@@ -1,5 +1,6 @@
 package eu.vilaca.security.service;
 
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
@@ -30,14 +31,12 @@ class LazyPodWatcher implements PodWatcher {
 				|| rule.getFilter().getNamespace().getInclude() == null) {
 			return Collections.emptyList();
 		}
-		final List<V1Pod> pods = rule.getFilter()
+		return rule.getFilter()
 				.getNamespace()
 				.getInclude()
 				.stream()
 				.flatMap(ns -> getPodsForNameSpace(ns).stream())
-				.collect(Collectors.toList());
-		return pods.stream()
-				.flatMap(pod -> rule.evaluate(pod).stream())
+				.flatMap(pod -> K8sContextBuilder.evaluatePod(rule, pod).stream())
 				.collect(Collectors.toList());
 	}
 
@@ -60,6 +59,7 @@ class LazyPodWatcher implements PodWatcher {
 							null)
 					.getItems();
 			this.cache.put(ns, pods);
+			Metrics.PODS_SCANNED_TOTAL.inc(pods.size());
 			return pods;
 		} catch (ApiException ex) {
 			log.error("Cannot list pods in namespace {}.", ns, ex);

@@ -1,12 +1,7 @@
 package eu.vilaca.security.violation;
 
 import eu.vilaca.security.rule.Rule;
-import io.kubernetes.client.openapi.models.V1Container;
-import io.kubernetes.client.openapi.models.V1ObjectMeta;
-import io.kubernetes.client.openapi.models.V1Pod;
 import org.junit.Test;
-
-import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -21,21 +16,12 @@ public class PodRuleViolationTest {
 		return rule;
 	}
 
-	private static V1Pod createPod(String namespace, String name) {
-		final var pod = new V1Pod();
-		pod.setMetadata(new V1ObjectMeta().namespace(namespace).name(name));
-		return pod;
-	}
-
 	// --- Constructor ---
 
 	@Test
 	public void constructorSetsFieldsCorrectly() {
 		final var rule = createRule("test-rule", "test-alert");
-		final var pod = createPod("prod", "web-server");
-		final var container = new V1Container().image("docker.io/nginx:1.25");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
+		final var violation = new PodRuleViolation(rule, "prod", "web-server", "docker.io/nginx:1.25");
 
 		assertEquals(rule, violation.getRule());
 		assertEquals("prod", violation.getNamespace());
@@ -46,12 +32,9 @@ public class PodRuleViolationTest {
 	}
 
 	@Test
-	public void constructorWithNullMetadata() {
+	public void constructorWithNullNamespace() {
 		final var rule = createRule("test-rule", "test-alert");
-		final var pod = new V1Pod(); // no metadata
-		final var container = new V1Container().image("docker.io/nginx:latest");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
+		final var violation = new PodRuleViolation(rule, null, null, "docker.io/nginx:latest");
 
 		assertNull(violation.getNamespace());
 		assertNull(violation.getPod());
@@ -60,10 +43,7 @@ public class PodRuleViolationTest {
 	@Test
 	public void constructorWithNullImage() {
 		final var rule = createRule("test-rule", "test-alert");
-		final var pod = createPod("default", "pod");
-		final var container = new V1Container(); // no image
-
-		final var violation = new PodRuleViolation(rule, pod, container);
+		final var violation = new PodRuleViolation(rule, "default", "pod", null);
 
 		assertNotNull(violation.getImageData());
 		assertNull(violation.getImageData().getRegistry());
@@ -74,10 +54,7 @@ public class PodRuleViolationTest {
 	@Test
 	public void createLabelsContainsAllFields() {
 		final var rule = createRule("my-rule", "my-alert");
-		final var pod = createPod("staging", "api-server");
-		final var container = new V1Container().image("docker.io/myapp:v2");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
+		final var violation = new PodRuleViolation(rule, "staging", "api-server", "docker.io/myapp:v2");
 		final var labels = violation.createLabels();
 
 		assertEquals("my-rule", labels.get("rule"));
@@ -89,10 +66,7 @@ public class PodRuleViolationTest {
 	@Test
 	public void createLabelsOmitsNullValues() {
 		final var rule = createRule("my-rule", "my-alert");
-		final var pod = new V1Pod(); // null metadata → null namespace and pod
-		final var container = new V1Container().image("docker.io/nginx:latest");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
+		final var violation = new PodRuleViolation(rule, null, null, "docker.io/nginx:latest");
 		final var labels = violation.createLabels();
 
 		assertTrue(labels.containsKey("rule"));
@@ -104,56 +78,33 @@ public class PodRuleViolationTest {
 	@Test
 	public void createLabelsRuleNameIsCorrect() {
 		final var rule = createRule("special-chars:rule-name/v2", "alert");
-		final var pod = createPod("ns", "pod");
-		final var container = new V1Container().image("docker.io/img:v1");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
-		final var labels = violation.createLabels();
-
-		assertEquals("special-chars:rule-name/v2", labels.get("rule"));
+		final var violation = new PodRuleViolation(rule, "ns", "pod", "docker.io/img:v1");
+		assertEquals("special-chars:rule-name/v2", violation.createLabels().get("rule"));
 	}
 
 	@Test
 	public void createLabelsImagePrettyFormat() {
 		final var rule = createRule("test", "alert");
-		final var pod = createPod("ns", "pod");
-		final var container = new V1Container().image("ghcr.io/org/myapp:v3.1");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
-		final var labels = violation.createLabels();
-
-		final var image = labels.get("image");
+		final var violation = new PodRuleViolation(rule, "ns", "pod", "ghcr.io/org/myapp:v3.1");
+		final var image = violation.createLabels().get("image");
 		assertNotNull(image);
 		assertTrue(image.contains("ghcr.io"));
 		assertTrue(image.contains("myapp"));
 	}
 
-	// --- Label count ---
-
 	@Test
 	public void createLabelsHasFourEntriesWhenAllPresent() {
 		final var rule = createRule("rule", "alert");
-		final var pod = createPod("ns", "pod");
-		final var container = new V1Container().image("docker.io/app:v1");
-
-		final var violation = new PodRuleViolation(rule, pod, container);
-		final var labels = violation.createLabels();
-
-		assertEquals(4, labels.size());
+		final var violation = new PodRuleViolation(rule, "ns", "pod", "docker.io/app:v1");
+		assertEquals(4, violation.createLabels().size());
 	}
-
-	// --- Equals via Lombok @Data ---
 
 	@Test
 	public void twoViolationsWithSameDataAreEqual() {
 		final var rule = createRule("rule", "alert");
-		final var pod = createPod("ns", "pod-name");
-		final var container = new V1Container().image("docker.io/nginx:latest");
+		final var v1 = new PodRuleViolation(rule, "ns", "pod-name", "docker.io/nginx:latest");
+		final var v2 = new PodRuleViolation(rule, "ns", "pod-name", "docker.io/nginx:latest");
 
-		final var v1 = new PodRuleViolation(rule, pod, container);
-		final var v2 = new PodRuleViolation(rule, pod, container);
-
-		// They have the same values but ImageData is a new instance each time
 		assertEquals(v1.getNamespace(), v2.getNamespace());
 		assertEquals(v1.getPod(), v2.getPod());
 		assertEquals(v1.getRule(), v2.getRule());

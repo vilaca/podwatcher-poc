@@ -2,6 +2,7 @@ package eu.vilaca.security.docker;
 
 import com.github.dockerjava.api.DockerClient;
 import eu.vilaca.security.rule.Rule;
+import eu.vilaca.security.service.WatcherService;
 import eu.vilaca.security.violation.PodRuleViolation;
 import lombok.extern.log4j.Log4j2;
 
@@ -10,7 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Log4j2
-public class DockerWatcherService {
+public class DockerWatcherService implements WatcherService {
 
 	private final DockerClient client;
 
@@ -18,6 +19,7 @@ public class DockerWatcherService {
 		this.client = client;
 	}
 
+	@Override
 	public List<PodRuleViolation> watch(List<Rule> rules) {
 		try {
 			final var watcher = new DockerWatcher(client);

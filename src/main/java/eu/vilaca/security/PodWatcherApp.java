@@ -16,6 +16,7 @@ import eu.vilaca.security.observability.HealthServer;
 import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.service.PodWatcherService;
+import eu.vilaca.security.service.WatcherService;
 import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
@@ -96,20 +97,10 @@ public class PodWatcherApp {
 		Metrics.RULES_LOADED.set(rules.size());
 		log.info("Loaded {} rules.", rules.size());
 
-		final var scanMode = System.getenv("SCAN_MODE");
 		final var timer = Metrics.SCAN_DURATION_SECONDS.startTimer();
 		try {
-			final List<PodRuleViolation> violations;
-			if ("docker".equalsIgnoreCase(scanMode)) {
-				log.info("Scan mode: Docker");
-				final var dockerClient = createDockerClient();
-				violations = new DockerWatcherService(dockerClient).watch(rules);
-			} else {
-				log.info("Scan mode: Kubernetes");
-				final var apiClient = createApiClient();
-				violations = new PodWatcherService(apiClient).watch(rules);
-			}
-			Metrics.PODS_SCANNED_TOTAL.inc(violations.size());
+			final var watcherService = createWatcherService();
+			final var violations = watcherService.watch(rules);
 			violations.forEach(v -> sendAlerts(amConfiguration, alerts, v));
 		} finally {
 			timer.observeDuration();
@@ -161,6 +152,16 @@ public class PodWatcherApp {
 			message.put("group", template.getGroup());
 		}
 		AlertManagerClient.sendAlert(amConfiguration, new Message(message));
+	}
+
+	private static WatcherService createWatcherService() {
+		final var scanMode = System.getenv("SCAN_MODE");
+		if ("docker".equalsIgnoreCase(scanMode)) {
+			log.info("Scan mode: Docker");
+			return new DockerWatcherService(createDockerClient());
+		}
+		log.info("Scan mode: Kubernetes");
+		return new PodWatcherService(createApiClient());
 	}
 
 	private static ApiClient createApiClient() {
