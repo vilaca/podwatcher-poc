@@ -119,9 +119,16 @@ public class PodWatcherApp {
 				errors.add("Alert template '" + template.getName() + "' has no labels defined.");
 			}
 		}
+		final var spelParser = new org.springframework.expression.spel.standard.SpelExpressionParser();
 		for (final var rule : rules) {
 			if (rule.getRule() == null || rule.getRule().isBlank()) {
 				errors.add("Rule '" + rule.getName() + "' has no SpEL expression defined.");
+			} else {
+				try {
+					spelParser.parseExpression(rule.getRule());
+				} catch (Exception e) {
+					errors.add("Rule '" + rule.getName() + "' has invalid SpEL expression: " + e.getMessage());
+				}
 			}
 			if (rule.getAlert() == null || rule.getAlert().isBlank()) {
 				errors.add("Rule '" + rule.getName() + "' has no alert template reference.");

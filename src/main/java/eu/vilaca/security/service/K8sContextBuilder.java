@@ -71,7 +71,7 @@ public class K8sContextBuilder {
 	public static List<PodRuleViolation> evaluatePod(Rule rule, V1Pod pod) {
 		final var spec = pod.getSpec();
 		if (spec == null) {
-			log.debug("Pod {} has null spec, skipping rule {}.", podName(pod), rule.getName());
+			log.warn("Pod {} has null spec, skipping rule {}.", podName(pod), rule.getName());
 			return List.of();
 		}
 		final var namespace = podNamespace(pod);
