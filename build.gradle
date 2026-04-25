@@ -44,6 +44,8 @@ dependencies {
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.0-rc1'
     implementation 'com.squareup.okhttp3:okhttp:4.10.0'
     implementation 'org.springframework:spring-expression:6.0.10'
+    implementation 'com.github.docker-java:docker-java-core:3.3.6'
+    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.6'
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.mockito:mockito-core:5.7.0'

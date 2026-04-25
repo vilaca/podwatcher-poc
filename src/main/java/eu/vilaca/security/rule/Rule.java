@@ -70,6 +70,23 @@ public class Rule {
 		return Collections.emptyList();
 	}
 
+	public List<PodRuleViolation> evaluate(Context ctx, String namespace, String containerName, String image) {
+		Metrics.RULES_EVALUATED_TOTAL.labels(this.name).inc();
+		try {
+			if (evaluateRule(ctx)) {
+				Metrics.VIOLATIONS_TOTAL.labels(this.name).inc();
+				return List.of(new PodRuleViolation(this, namespace, containerName, image));
+			}
+		} catch (SpelEvaluationException se) {
+			Metrics.RULES_ERRORS_TOTAL.labels(this.name).inc();
+			log.error("Can't evaluate rule {}. {}", this.name, se.getMessage());
+		} catch (Exception ex) {
+			Metrics.RULES_ERRORS_TOTAL.labels(this.name).inc();
+			log.error("Can't evaluate rule {}.", this.name, ex);
+		}
+		return Collections.emptyList();
+	}
+
 	private static final SpelExpressionParser PARSER = new SpelExpressionParser();
 
 	private Expression getParsedExpression() {

@@ -22,6 +22,13 @@ public class PodRuleViolation {
 		this.pod = pod.getMetadata() == null ? null : pod.getMetadata().getName();
 	}
 
+	public PodRuleViolation(Rule rule, String namespace, String containerName, String image) {
+		this.imageData = new ImageData(image);
+		this.rule = rule;
+		this.namespace = namespace;
+		this.pod = containerName;
+	}
+
 	private static void addLabel(HashMap<String, String> labels, String name, String value) {
 		if (value != null) {
 			labels.put(name, value);

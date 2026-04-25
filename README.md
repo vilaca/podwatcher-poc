@@ -173,13 +173,54 @@ kubectl run podwatcher-poc \
   --overrides='{ "spec": { "serviceAccount": "sa-pod-watcher" }  }'
 ```
 
-## Run in Docker
+## Scan modes
+
+PodWatcher supports two scan modes controlled by the `SCAN_MODE` environment variable:
+
+| Mode | `SCAN_MODE` | Description |
+|------|-------------|-------------|
+| Kubernetes (default) | unset or `kubernetes` | Scans pods via the Kubernetes API |
+| Docker | `docker` | Scans containers on the local Docker daemon |
+
+The same rules and SpEL expressions work for both modes. Docker container properties are mapped to the same Context fields:
+
+| Docker property | Context field |
+|---|---|
+| `HostConfig.Privileged` | `container.securityContext.privileged` |
+| `HostConfig.CapAdd/CapDrop` | `container.securityContext.capabilities.add/drop` |
+| `HostConfig.ReadonlyRootfs` | `container.securityContext.readOnlyRootFilesystem` |
+| `HostConfig.PidMode` ("host") | `spec.hostPID` |
+| `HostConfig.NetworkMode` ("host") | `spec.hostNetwork` |
+| `HostConfig.IpcMode` ("host") | `spec.hostIPC` |
+| `Config.User` | `container.securityContext.runAsUser/runAsGroup` |
+| `Config.Entrypoint` + `Config.Cmd` | `container.command` |
+| `Config.ExposedPorts` | `container.ports` |
+| `Config.Labels` | `metadata.labels` |
+| `HostConfig.SecurityOpts` | `seccompProfileType`, `allowPrivilegeEscalation` |
+
+In Docker mode, `metadata.namespace` is always `"docker"` and `container.containerType` is always `"standard"`.
+
+## Run in Docker (scanning K8s)
 
 ```sh
 docker run -v (path-to-kubeconfig):/kubeconfig.yaml \
     -e RULES_FOLDER=examples/rules \
     -e ALERT_TEMPLATES_FOLDER=examples/alerts \
     -e KUBECONFIG=/kubeconfig.yaml \
+    -e AM_USER=user \
+    -e AM_PASSWORD= \
+    -e AM_URL=http://alertmanager:9093/api/v1/alerts \
+    -p 8080:8080 \
+    ghcr.io/vilaca/podwatcher-poc:latest
+```
+
+## Run in Docker (scanning Docker)
+
+```sh
+docker run -v /var/run/docker.sock:/var/run/docker.sock \
+    -e SCAN_MODE=docker \
+    -e RULES_FOLDER=examples/rules \
+    -e ALERT_TEMPLATES_FOLDER=examples/alerts \
     -e AM_USER=user \
     -e AM_PASSWORD= \
     -e AM_URL=http://alertmanager:9093/api/v1/alerts \
@@ -212,7 +253,8 @@ docker run -v (path-to-kubeconfig):/kubeconfig.yaml \
 | `AM_USER` | AlertManager basic auth user | required |
 | `AM_PASSWORD` | AlertManager basic auth password | required |
 | `AM_DEFAULT_DURATION` | Alert duration in ms | `300000` |
-| `KUBECONFIG` | Path to kubeconfig file | in-cluster auth |
+| `SCAN_MODE` | Scan mode: `kubernetes` or `docker` | `kubernetes` |
+| `KUBECONFIG` | Path to kubeconfig file (K8s mode) | in-cluster auth |
 | `HEALTH_PORT` | Health/metrics server port | `8080` |
 | `LOG_LEVEL` | Log level (DEBUG, INFO, WARN, ERROR) | `INFO` |
 

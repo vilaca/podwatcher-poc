@@ -3,10 +3,15 @@ package eu.vilaca.security;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
+import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import eu.vilaca.security.alert.AlertManagerClient;
 import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.model.AlertTemplate;
 import eu.vilaca.security.alert.model.Message;
+import eu.vilaca.security.docker.DockerWatcherService;
 import eu.vilaca.security.observability.HealthServer;
 import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
@@ -91,10 +96,19 @@ public class PodWatcherApp {
 		Metrics.RULES_LOADED.set(rules.size());
 		log.info("Loaded {} rules.", rules.size());
 
-		final var apiClient = createApiClient();
+		final var scanMode = System.getenv("SCAN_MODE");
 		final var timer = Metrics.SCAN_DURATION_SECONDS.startTimer();
 		try {
-			final var violations = new PodWatcherService(apiClient).watch(rules);
+			final List<PodRuleViolation> violations;
+			if ("docker".equalsIgnoreCase(scanMode)) {
+				log.info("Scan mode: Docker");
+				final var dockerClient = createDockerClient();
+				violations = new DockerWatcherService(dockerClient).watch(rules);
+			} else {
+				log.info("Scan mode: Kubernetes");
+				final var apiClient = createApiClient();
+				violations = new PodWatcherService(apiClient).watch(rules);
+			}
 			Metrics.PODS_SCANNED_TOTAL.inc(violations.size());
 			violations.forEach(v -> sendAlerts(amConfiguration, alerts, v));
 		} finally {
@@ -175,6 +189,14 @@ public class PodWatcherApp {
 		}
 		System.exit(1);
 		return null;
+	}
+
+	private static DockerClient createDockerClient() {
+		final var config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+		final var httpClient = new ApacheDockerHttpClient.Builder()
+				.dockerHost(config.getDockerHost())
+				.build();
+		return DockerClientImpl.getInstance(config, httpClient);
 	}
 
 	private static List<AlertTemplate> readAlertTemplates() {
