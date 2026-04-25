@@ -1,5 +1,6 @@
 package eu.vilaca.security.service;
 
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
@@ -34,6 +35,8 @@ class EagerPodWatcher implements PodWatcher {
 				.getItems()
 				.forEach(pod -> groupByNamespace(allPods, pod));
 		this.cache = Collections.unmodifiableMap(allPods);
+		final var totalPods = allPods.values().stream().mapToInt(List::size).sum();
+		Metrics.PODS_SCANNED_TOTAL.inc(totalPods);
 	}
 
 	private static void groupByNamespace(Map<String, List<V1Pod>> allPods, V1Pod pod) {

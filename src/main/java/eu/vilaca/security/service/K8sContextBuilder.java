@@ -1,6 +1,5 @@
 package eu.vilaca.security.service;
 
-import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Context;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.ImageData;
@@ -75,7 +74,6 @@ public class K8sContextBuilder {
 			log.debug("Pod {} has null spec, skipping rule {}.", podName(pod), rule.getName());
 			return List.of();
 		}
-		Metrics.PODS_SCANNED_TOTAL.inc();
 		final var namespace = podNamespace(pod);
 		final var name = podName(pod);
 		return collectContainers(spec).stream()

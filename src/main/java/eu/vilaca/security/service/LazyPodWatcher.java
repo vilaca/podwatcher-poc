@@ -1,5 +1,6 @@
 package eu.vilaca.security.service;
 
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.ApiClient;
@@ -58,6 +59,7 @@ class LazyPodWatcher implements PodWatcher {
 							null)
 					.getItems();
 			this.cache.put(ns, pods);
+			Metrics.PODS_SCANNED_TOTAL.inc(pods.size());
 			return pods;
 		} catch (ApiException ex) {
 			log.error("Cannot list pods in namespace {}.", ns, ex);

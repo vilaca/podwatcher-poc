@@ -1,6 +1,7 @@
 package eu.vilaca.security.docker;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
 import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
@@ -15,15 +16,10 @@ import java.util.stream.Collectors;
 @Log4j2
 public class DockerWatcher implements PodWatcher {
 
-	private final DockerClient client;
+	private final List<InspectContainerResponse> containers;
 
 	public DockerWatcher(DockerClient client) {
-		this.client = client;
-	}
-
-	@Override
-	public List<PodRuleViolation> evaluate(Rule rule) {
-		return client.listContainersCmd()
+		this.containers = client.listContainersCmd()
 				.withStatusFilter(List.of("running"))
 				.exec()
 				.stream()
@@ -36,8 +32,14 @@ public class DockerWatcher implements PodWatcher {
 					}
 				})
 				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+		Metrics.PODS_SCANNED_TOTAL.inc(this.containers.size());
+	}
+
+	@Override
+	public List<PodRuleViolation> evaluate(Rule rule) {
+		return containers.stream()
 				.flatMap(inspect -> {
-					Metrics.PODS_SCANNED_TOTAL.inc();
 					final var ctx = DockerContextBuilder.buildContext(inspect);
 					final var name = DockerContextBuilder.containerName(inspect);
 					final var config = inspect.getConfig();
