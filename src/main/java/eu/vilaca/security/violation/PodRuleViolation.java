@@ -1,8 +1,6 @@
 package eu.vilaca.security.violation;
 
 import eu.vilaca.security.rule.Rule;
-import io.kubernetes.client.openapi.models.V1Container;
-import io.kubernetes.client.openapi.models.V1Pod;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -14,13 +12,6 @@ public class PodRuleViolation {
 	private Rule rule;
 	private String namespace;
 	private String pod;
-
-	public PodRuleViolation(Rule rule, V1Pod pod, V1Container c) {
-		this.imageData = new ImageData(c.getImage());
-		this.rule = rule;
-		this.namespace = pod.getMetadata() == null ? null : pod.getMetadata().getNamespace();
-		this.pod = pod.getMetadata() == null ? null : pod.getMetadata().getName();
-	}
 
 	public PodRuleViolation(Rule rule, String namespace, String containerName, String image) {
 		this.imageData = new ImageData(image);

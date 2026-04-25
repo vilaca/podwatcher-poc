@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Log4j2
-public class PodWatcherService {
+public class PodWatcherService implements WatcherService {
 
 	private final ApiClient client;
 
@@ -19,6 +19,7 @@ public class PodWatcherService {
 		this.client = client;
 	}
 
+	@Override
 	public List<PodRuleViolation> watch(List<Rule> rules) {
 		final var allNamespaces = !rules.stream()
 				.map(Rule::allNamespaces)

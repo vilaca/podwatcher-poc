@@ -50,12 +50,26 @@ class EagerPodWatcher implements PodWatcher {
 	}
 
 	public List<PodRuleViolation> evaluate(Rule rule) {
-		final List<V1Pod> pods = cache.entrySet()
+		return cache.values()
 				.stream()
-				.flatMap(entry -> entry.getValue().stream())
+				.flatMap(List::stream)
+				.flatMap(pod -> evaluatePod(rule, pod).stream())
 				.collect(Collectors.toList());
-		return pods.stream()
-				.flatMap(pod -> rule.evaluate(pod).stream())
+	}
+
+	private List<PodRuleViolation> evaluatePod(Rule rule, V1Pod pod) {
+		final var spec = pod.getSpec();
+		if (spec == null) {
+			return Collections.emptyList();
+		}
+		final var namespace = K8sContextBuilder.podNamespace(pod);
+		return K8sContextBuilder.collectContainers(spec).stream()
+				.flatMap(cwt -> {
+					final var ctx = K8sContextBuilder.buildContext(pod, spec, cwt.container, cwt.type);
+					final var name = K8sContextBuilder.podName(pod);
+					final var image = cwt.container.getImage();
+					return rule.evaluate(ctx, namespace, name, image).stream();
+				})
 				.collect(Collectors.toList());
 	}
 }
