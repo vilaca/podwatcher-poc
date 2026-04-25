@@ -75,6 +75,7 @@ public class K8sContextBuilder {
 			log.debug("Pod {} has null spec, skipping rule {}.", podName(pod), rule.getName());
 			return List.of();
 		}
+		Metrics.PODS_SCANNED_TOTAL.inc();
 		final var namespace = podNamespace(pod);
 		final var name = podName(pod);
 		return collectContainers(spec).stream()

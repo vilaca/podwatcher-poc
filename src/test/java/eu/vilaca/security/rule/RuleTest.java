@@ -67,23 +67,8 @@ public class RuleTest {
 		return rule;
 	}
 
-	/**
-	 * Evaluates a rule against a pod using K8sContextBuilder — the same flow
-	 * that EagerPodWatcher/LazyPodWatcher use in production.
-	 */
 	private static List<PodRuleViolation> evaluateK8s(Rule rule, V1Pod pod) {
-		final var spec = pod.getSpec();
-		if (spec == null) {
-			return Collections.emptyList();
-		}
-		final var namespace = K8sContextBuilder.podNamespace(pod);
-		final var podName = K8sContextBuilder.podName(pod);
-		final var violations = new ArrayList<PodRuleViolation>();
-		for (final var cwt : K8sContextBuilder.collectContainers(spec)) {
-			final var ctx = K8sContextBuilder.buildContext(pod, spec, cwt.container, cwt.type);
-			violations.addAll(rule.evaluate(ctx, namespace, podName, cwt.container.getImage()));
-		}
-		return violations;
+		return K8sContextBuilder.evaluatePod(rule, pod);
 	}
 
 	// --- allNamespaces() ---

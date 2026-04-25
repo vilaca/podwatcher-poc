@@ -2,6 +2,7 @@ package eu.vilaca.security.docker;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.exception.NotFoundException;
+import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.service.PodWatcher;
 import eu.vilaca.security.violation.PodRuleViolation;
@@ -36,6 +37,7 @@ public class DockerWatcher implements PodWatcher {
 				})
 				.filter(Objects::nonNull)
 				.flatMap(inspect -> {
+					Metrics.PODS_SCANNED_TOTAL.inc();
 					final var ctx = DockerContextBuilder.buildContext(inspect);
 					final var name = DockerContextBuilder.containerName(inspect);
 					final var config = inspect.getConfig();

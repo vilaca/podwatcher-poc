@@ -101,7 +101,6 @@ public class PodWatcherApp {
 		try {
 			final var watcherService = createWatcherService();
 			final var violations = watcherService.watch(rules);
-			Metrics.PODS_SCANNED_TOTAL.inc(violations.size());
 			violations.forEach(v -> sendAlerts(amConfiguration, alerts, v));
 		} finally {
 			timer.observeDuration();
