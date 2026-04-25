@@ -1,7 +1,9 @@
 package eu.vilaca.security.service;
 
 import eu.vilaca.security.rule.Context;
+import eu.vilaca.security.rule.Rule;
 import eu.vilaca.security.violation.ImageData;
+import eu.vilaca.security.violation.PodRuleViolation;
 import io.kubernetes.client.openapi.models.V1Capabilities;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerPort;
@@ -13,7 +15,6 @@ import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1SecurityContext;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,6 +64,21 @@ public class K8sContextBuilder {
 
 	public static String podNamespace(V1Pod pod) {
 		return pod.getMetadata() == null ? null : pod.getMetadata().getNamespace();
+	}
+
+	public static List<PodRuleViolation> evaluatePod(Rule rule, V1Pod pod) {
+		final var spec = pod.getSpec();
+		if (spec == null) {
+			return List.of();
+		}
+		final var namespace = podNamespace(pod);
+		final var name = podName(pod);
+		return collectContainers(spec).stream()
+				.flatMap(cwt -> {
+					final var ctx = buildContext(pod, spec, cwt.container, cwt.type);
+					return rule.evaluate(ctx, namespace, name, cwt.container.getImage()).stream();
+				})
+				.collect(Collectors.toList());
 	}
 
 	private static V1Container toV1Container(V1EphemeralContainer ec) {

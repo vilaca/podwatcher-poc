@@ -35,23 +35,7 @@ class LazyPodWatcher implements PodWatcher {
 				.getInclude()
 				.stream()
 				.flatMap(ns -> getPodsForNameSpace(ns).stream())
-				.flatMap(pod -> evaluatePod(rule, pod).stream())
-				.collect(Collectors.toList());
-	}
-
-	private List<PodRuleViolation> evaluatePod(Rule rule, V1Pod pod) {
-		final var spec = pod.getSpec();
-		if (spec == null) {
-			return Collections.emptyList();
-		}
-		final var namespace = K8sContextBuilder.podNamespace(pod);
-		return K8sContextBuilder.collectContainers(spec).stream()
-				.flatMap(cwt -> {
-					final var ctx = K8sContextBuilder.buildContext(pod, spec, cwt.container, cwt.type);
-					final var name = K8sContextBuilder.podName(pod);
-					final var image = cwt.container.getImage();
-					return rule.evaluate(ctx, namespace, name, image).stream();
-				})
+				.flatMap(pod -> K8sContextBuilder.evaluatePod(rule, pod).stream())
 				.collect(Collectors.toList());
 	}
 
