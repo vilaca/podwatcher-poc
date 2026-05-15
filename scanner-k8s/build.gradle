@@ -4,6 +4,7 @@ dependencies {
 }
 
 jar {
+    dependsOn configurations.runtimeClasspath
     manifest {
         attributes 'Main-Class': 'eu.vilaca.security.K8sScannerApp'
     }
