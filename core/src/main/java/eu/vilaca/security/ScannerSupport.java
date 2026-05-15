@@ -3,23 +3,15 @@ package eu.vilaca.security;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import eu.vilaca.security.alert.AlertManagerClient;
 import eu.vilaca.security.alert.Configuration;
 import eu.vilaca.security.alert.model.AlertTemplate;
 import eu.vilaca.security.alert.model.Message;
-import eu.vilaca.security.docker.DockerWatcherService;
 import eu.vilaca.security.observability.HealthServer;
 import eu.vilaca.security.observability.Metrics;
 import eu.vilaca.security.rule.Rule;
-import eu.vilaca.security.service.PodWatcherService;
 import eu.vilaca.security.service.WatcherService;
 import eu.vilaca.security.violation.PodRuleViolation;
-import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.util.Config;
 import lombok.extern.log4j.Log4j2;
 
 import java.io.File;
@@ -38,7 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Log4j2
-public class PodWatcherApp {
+public class ScannerSupport {
 
 	private static final ObjectMapper YAML_MAPPER = createYamlMapper();
 
@@ -49,7 +41,7 @@ public class PodWatcherApp {
 		return om;
 	}
 
-	public static void main(String[] args) {
+	public static void runScan(WatcherService watcherService) {
 		HealthServer healthServer = null;
 		try {
 			healthServer = new HealthServer();
@@ -59,7 +51,7 @@ public class PodWatcherApp {
 		}
 
 		try {
-			run();
+			doScan(watcherService);
 		} finally {
 			if (healthServer != null) {
 				healthServer.stop();
@@ -67,7 +59,7 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static void run() {
+	private static void doScan(WatcherService watcherService) {
 		final var amConfiguration = getAmConfiguration();
 		if (amConfiguration.password() == null || amConfiguration.password().isBlank()
 				|| amConfiguration.user() == null || amConfiguration.user().isBlank()
@@ -99,7 +91,6 @@ public class PodWatcherApp {
 
 		final var timer = Metrics.SCAN_DURATION_SECONDS.startTimer();
 		try {
-			final var watcherService = createWatcherService();
 			final var violations = watcherService.watch(rules);
 			violations.forEach(v -> sendAlerts(amConfiguration, alerts, v));
 		} finally {
@@ -109,7 +100,7 @@ public class PodWatcherApp {
 		log.info("Scan complete.");
 	}
 
-	static List<String> validate(List<Rule> rules, Map<String, AlertTemplate> alerts) {
+	public static List<String> validate(List<Rule> rules, Map<String, AlertTemplate> alerts) {
 		final var errors = new ArrayList<String>();
 		for (final var template : alerts.values()) {
 			if (template.getName() == null || template.getName().isBlank()) {
@@ -161,53 +152,7 @@ public class PodWatcherApp {
 		AlertManagerClient.sendAlert(amConfiguration, new Message(message));
 	}
 
-	private static WatcherService createWatcherService() {
-		final var scanMode = System.getenv("SCAN_MODE");
-		if ("docker".equalsIgnoreCase(scanMode)) {
-			log.info("Scan mode: Docker");
-			return new DockerWatcherService(createDockerClient());
-		}
-		log.info("Scan mode: Kubernetes");
-		return new PodWatcherService(createApiClient());
-	}
-
-	private static ApiClient createApiClient() {
-		final var kc = System.getenv("KUBECONFIG");
-		if (kc != null && !kc.isBlank()) {
-			try {
-				return Config.fromConfig(kc);
-			} catch (IOException e) {
-				log.error("Can't create client for kc: " + kc, e);
-			}
-		}
-		final var k8s = System.getenv("KUBERNETES_SERVICE_HOST");
-		if (k8s != null && !k8s.isBlank()) {
-			try {
-				return Config.fromCluster();
-			} catch (IOException e) {
-				log.error("Can't create api client.", e);
-				System.exit(1);
-			}
-		}
-		try {
-			log.info("Using default k8s api client.");
-			return Config.defaultClient();
-		} catch (IOException e) {
-			log.error("Can't create api client.", e);
-		}
-		System.exit(1);
-		return null;
-	}
-
-	private static DockerClient createDockerClient() {
-		final var config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
-		final var httpClient = new ApacheDockerHttpClient.Builder()
-				.dockerHost(config.getDockerHost())
-				.build();
-		return DockerClientImpl.getInstance(config, httpClient);
-	}
-
-	private static List<AlertTemplate> readAlertTemplates() {
+	public static List<AlertTemplate> readAlertTemplates() {
 		final var templatesFolder = System.getenv("ALERT_TEMPLATES_FOLDER");
 		if (templatesFolder == null || templatesFolder.isBlank()) {
 			log.error("ALERT_TEMPLATES_FOLDER environment variable is not set.");
@@ -220,7 +165,7 @@ public class PodWatcherApp {
 		}
 		try (Stream<Path> paths = Files.walk(folder)) {
 			return paths.filter(Files::isRegularFile)
-					.map(PodWatcherApp::readAlertTemplates)
+					.map(ScannerSupport::readAlertTemplate)
 					.filter(Objects::nonNull)
 					.collect(Collectors.toList());
 		} catch (IOException e) {
@@ -229,7 +174,7 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static AlertTemplate readAlertTemplates(Path file) {
+	private static AlertTemplate readAlertTemplate(Path file) {
 		try {
 			return YAML_MAPPER.readValue(new File(file.toString()), AlertTemplate.class);
 		} catch (IOException e) {
@@ -238,7 +183,7 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static List<Rule> readRules() {
+	public static List<Rule> readRules() {
 		final var rulesFolder = System.getenv("RULES_FOLDER");
 		if (rulesFolder == null || rulesFolder.isBlank()) {
 			log.error("RULES_FOLDER environment variable is not set.");
@@ -251,7 +196,7 @@ public class PodWatcherApp {
 		}
 		try (Stream<Path> paths = Files.walk(folder)) {
 			return paths.filter(Files::isRegularFile)
-					.map(PodWatcherApp::getPodWatcherRule)
+					.map(ScannerSupport::readRule)
 					.filter(Objects::nonNull)
 					.filter(Rule::isEnabled)
 					.collect(Collectors.toList());
@@ -261,7 +206,7 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static Rule getPodWatcherRule(Path file) {
+	private static Rule readRule(Path file) {
 		try {
 			return YAML_MAPPER.readValue(new File(file.toString()), Rule.class);
 		} catch (IOException e) {
@@ -270,7 +215,7 @@ public class PodWatcherApp {
 		}
 	}
 
-	private static Configuration getAmConfiguration() {
+	public static Configuration getAmConfiguration() {
 		final var am = initializeAlertConfiguration();
 		final int defaultDuration = useDefaultIfNull(System.getenv("AM_DEFAULT_DURATION"), -1);
 		if (defaultDuration != -1) {
@@ -292,7 +237,7 @@ public class PodWatcherApp {
 	}
 
 	private static Configuration initializeAlertConfiguration() {
-		try (final var is = PodWatcherApp.class.getResourceAsStream("/default.yaml")) {
+		try (final var is = ScannerSupport.class.getResourceAsStream("/default.yaml")) {
 			if (is == null) {
 				log.info("No default AlertManager config found on classpath.");
 				return new Configuration();

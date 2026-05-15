@@ -33,7 +33,7 @@ public class ConfigValidationTest {
 	public void validConfig_noErrors() {
 		final var template = createTemplate("my-alert", List.of("rule", "namespace"));
 		final var rule = createRule("my-rule", "true", "my-alert");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("my-alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("my-alert", template));
 		assertTrue(errors.isEmpty());
 	}
 
@@ -43,7 +43,7 @@ public class ConfigValidationTest {
 		final var t2 = createTemplate("alert-b", List.of("namespace"));
 		final var r1 = createRule("rule-1", "true", "alert-a");
 		final var r2 = createRule("rule-2", "false", "alert-b");
-		final var errors = PodWatcherApp.validate(List.of(r1, r2), Map.of("alert-a", t1, "alert-b", t2));
+		final var errors = ScannerSupport.validate(List.of(r1, r2), Map.of("alert-a", t1, "alert-b", t2));
 		assertTrue(errors.isEmpty());
 	}
 
@@ -53,7 +53,7 @@ public class ConfigValidationTest {
 	public void ruleWithNullExpression_fails() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("bad-rule", null, "alert");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("alert", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("bad-rule"));
 		assertTrue(errors.get(0).contains("SpEL"));
@@ -63,7 +63,7 @@ public class ConfigValidationTest {
 	public void ruleWithInvalidSpelExpression_fails() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("bad-spel", "this is not valid SpEL !!!@#$", "alert");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("alert", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("bad-spel"));
 		assertTrue(errors.get(0).contains("invalid SpEL"));
@@ -73,7 +73,7 @@ public class ConfigValidationTest {
 	public void ruleWithValidSpelExpression_passes() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("good-spel", "container.securityContext.privileged == true", "alert");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("alert", template));
 		assertTrue(errors.isEmpty());
 	}
 
@@ -81,7 +81,7 @@ public class ConfigValidationTest {
 	public void ruleWithBlankExpression_fails() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("blank-rule", "   ", "alert");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("alert", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("blank-rule"));
 	}
@@ -92,7 +92,7 @@ public class ConfigValidationTest {
 	public void ruleWithNullAlert_fails() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("no-alert-rule", "true", null);
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("alert", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("no-alert-rule"));
 		assertTrue(errors.get(0).contains("alert template reference"));
@@ -102,7 +102,7 @@ public class ConfigValidationTest {
 	public void ruleWithBlankAlert_fails() {
 		final var template = createTemplate("alert", List.of("rule"));
 		final var rule = createRule("blank-alert-rule", "true", "  ");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("alert", template));
 		assertEquals(1, errors.size());
 	}
 
@@ -112,7 +112,7 @@ public class ConfigValidationTest {
 	public void ruleReferencesUnknownTemplate_fails() {
 		final var template = createTemplate("existing-alert", List.of("rule"));
 		final var rule = createRule("orphan-rule", "true", "nonexistent-alert");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("existing-alert", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("existing-alert", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("orphan-rule"));
 		assertTrue(errors.get(0).contains("nonexistent-alert"));
@@ -124,7 +124,7 @@ public class ConfigValidationTest {
 	public void templateWithNullLabels_fails() {
 		final var template = createTemplate("bad-template", null);
 		final var rule = createRule("rule", "true", "bad-template");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("bad-template", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("bad-template", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("bad-template"));
 		assertTrue(errors.get(0).contains("labels"));
@@ -134,7 +134,7 @@ public class ConfigValidationTest {
 	public void templateWithEmptyLabels_fails() {
 		final var template = createTemplate("empty-labels", List.of());
 		final var rule = createRule("rule", "true", "empty-labels");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("empty-labels", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("empty-labels", template));
 		assertEquals(1, errors.size());
 		assertTrue(errors.get(0).contains("empty-labels"));
 	}
@@ -145,7 +145,7 @@ public class ConfigValidationTest {
 	public void templateWithNullName_fails() {
 		final var template = createTemplate(null, List.of("rule"));
 		final var rule = createRule("rule", "true", "null");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("null-key", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("null-key", template));
 		assertFalse(errors.isEmpty());
 	}
 
@@ -153,7 +153,7 @@ public class ConfigValidationTest {
 	public void templateWithBlankName_fails() {
 		final var template = createTemplate("  ", List.of("rule"));
 		final var rule = createRule("rule", "true", "  ");
-		final var errors = PodWatcherApp.validate(List.of(rule), Map.of("  ", template));
+		final var errors = ScannerSupport.validate(List.of(rule), Map.of("  ", template));
 		assertFalse(errors.isEmpty());
 	}
 
@@ -164,7 +164,7 @@ public class ConfigValidationTest {
 		final var template = createTemplate("alert", null); // bad labels
 		final var r1 = createRule("rule1", null, "alert"); // bad expression
 		final var r2 = createRule("rule2", "true", "missing"); // bad reference
-		final var errors = PodWatcherApp.validate(List.of(r1, r2), Map.of("alert", template));
+		final var errors = ScannerSupport.validate(List.of(r1, r2), Map.of("alert", template));
 		assertEquals(3, errors.size());
 	}
 }

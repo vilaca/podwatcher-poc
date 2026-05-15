@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'org.apache.logging.log4j:log4j-api:2.20.0'
+    api 'org.apache.logging.log4j:log4j-core:2.20.0'
+    api 'org.apache.logging.log4j:log4j-layout-template-json:2.20.0'
+    api 'io.prometheus:simpleclient:0.16.0'
+    api 'io.prometheus:simpleclient_common:0.16.0'
+    api 'com.fasterxml.jackson.core:jackson-databind:2.16.0-rc1'
+    api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.0-rc1'
+    api 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.0-rc1'
+    api 'com.squareup.okhttp3:okhttp:4.10.0'
+    api 'org.springframework:spring-expression:6.0.10'
+
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.10.0'
+}

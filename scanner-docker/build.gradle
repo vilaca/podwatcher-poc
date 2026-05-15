@@ -1,0 +1,16 @@
+dependencies {
+    implementation project(':core')
+    implementation 'com.github.docker-java:docker-java-core:3.3.6'
+    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.3.6'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'eu.vilaca.security.DockerScannerApp'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+}
